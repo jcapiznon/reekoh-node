@@ -1,0 +1,24 @@
+{
+  "name": "reekoh-node",
+  "version": "1.0.0",
+  "description": "Reekoh SDK",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Reekoh/reekoh-node.git"
+  },
+  "author": "Reekoh Inc.",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Reekoh/reekoh-node/issues"
+  },
+  "homepage": "https://github.com/Reekoh/reekoh-node#readme",
+  "dependencies": {
+    "amqplib": "^0.5.1",
+    "async": "^2.1.4",
+    "bluebird": "^3.4.7"
+  }
+}
