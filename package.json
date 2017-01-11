@@ -10,8 +10,8 @@
     "type": "git",
     "url": "git+https://github.com/Reekoh/reekoh-node.git"
   },
-  "author": "Reekoh Inc.",
-  "license": "ISC",
+  "author": "Reekoh, Inc.",
+  "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/Reekoh/reekoh-node/issues"
   },
@@ -19,6 +19,9 @@
   "dependencies": {
     "amqplib": "^0.5.1",
     "async": "^2.1.4",
-    "bluebird": "^3.4.7"
+    "bluebird": "^3.4.7",
+    "lodash.isempty": "^4.4.0",
+    "lodash.isplainobject": "^4.0.6",
+    "lodash.isstring": "^4.0.1"
   }
 }
