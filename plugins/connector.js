@@ -1,30 +1,47 @@
 'use strict'
 
 let Promise = require('bluebird')
-let amqplib = require('amqplib')
 let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
+let Broker = require('../lib/broker.lib')
+let inputPipes = process.env.INPUT_PIPES.split(',')
 let loggers = process.env.LOGGERS.split(',')
 let exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
-let Broker = require('../lib/messenger.lib.js')
-let isPlainObject = require('lodash.isplainobject')
-let isString = require('lodash.isstring')
 
 class Connector extends EventEmitter {
   constructor () {
     console.log('constructor')
     super()
-    this.config = JSON.parse(process.env.CONFIG)
-    this.INPUT_PIPE = process.env.INPUT_PIPE
-    this._broker = new Broker()
 
+    let dataEmitter = (msg) => {
+      async.waterfall([
+        async.constant(msg.content.toString('utf8')),
+        async.asyncify(JSON.parse)
+      ], (err, parsed) => {
+        if (err) return console.error(err)
+
+        this.emit('data', parsed)
+      })
+    }
+
+    this.queues = []
+    this._broker = new Broker()
     let broker = this._broker
 
     loggers.push('generic.logs')
     exceptionLoggers.push('generic.exceptions')
 
     async.waterfall([
+      (done) => {
+        async.waterfall([
+          async.constant(process.env.CONFIG),
+          async.asyncify(JSON.parse)
+        ], (err, parsed) => {
+          done(err)
+          this.config = parsed
+        })
+      },
       (done) => {
         // connect to rabbitmq
         broker.connect(process.env.BROKER)
@@ -33,34 +50,38 @@ class Connector extends EventEmitter {
             done()
           })
           .catch((error) => {
-            console.error('Could not connect to RabbitMQ Server. ERR:', error)
+            done(error)
           })
       },
       (done) => {
-        // connect to loggers queue
-        async.each(loggers, (logger, eCallback) => {
-          broker.assert(logger)
-            .then(() => {
-              console.log(`Connected to ${logger}`)
-              eCallback()
+        let queueIds = inputPipes
+          .concat(loggers)
+          .concat(exceptionLoggers)
+
+        async.each(queueIds, (queueID, callback) => {
+          broker.newQueue(queueID)
+            .then((queue) => {
+              this.queues[queueID] = queue
+              callback()
             })
             .catch((error) => {
-              eCallback(error)
+              callback(error)
             })
         }, (error) => {
           done(error)
         })
       },
       (done) => {
-        // connect to exception loggers queue
-        async.each(exceptionLoggers, (logger, eCallback) => {
-          broker.assert(logger)
+        // consume input pipes
+        async.each(inputPipes, (inputPipe, callback) => {
+          this.queues[inputPipe].consume((msg) => {
+            dataEmitter(msg)
+          })
             .then(() => {
-              console.log(`Connected to ${logger}`)
-              eCallback()
+              callback()
             })
             .catch((error) => {
-              eCallback(error)
+              callback(error)
             })
         }, (error) => {
           done(error)
@@ -68,6 +89,8 @@ class Connector extends EventEmitter {
       }
     ], (error) => {
       if (error) return console.error(error)
+
+      this.emit('ready')
     })
   }
 
@@ -76,50 +99,32 @@ class Connector extends EventEmitter {
     return new Promise((resolve, reject) => {
       if (isEmpty(logData)) return reject(new Error(`Please specify a data to log.`))
 
-      if (isPlainObject(logData)) {
-        // send to queue
-        async.each(loggers, (logger, done) => {
-          this._broker.send(logger, new Buffer(JSON.stringify(logData)))
-            .then(() => {
-              console.log('message written to queue')
-              done()
-            })
-            .catch((error) => {
-              done(error)
-            })
-        }, (error) => {
-          if (error) return reject(error)
-          resolve
-        })
-      }
-
-      if (isString(logData)) {
-        //  send to queue
-        async.each(loggers, (logger, done) => {
-          this._broker.send(logger, new Buffer(logData))
-            .then(() => {
-              console.log(`message written to queue ${logger}`)
-              done()
-            })
-            .catch((error) => {
-              done(error)
-            })
-        }, (error) => {
-          if (error) return reject(error)
-          resolve()
-        })
-      }
+      async.each(loggers, (logger, done) => {
+        this.queues[logger].publish(logData)
+          .then(() => {
+            console.log('message written to queue')
+            done()
+          })
+          .catch((error) => {
+            done(error)
+          })
+      }, (error) => {
+        if (error) return reject(error)
+        resolve()
+      })
     })
   }
 
   logException (err) {
+    let errData = {
+      name: err.name,
+      message: err.message,
+      stack: err.stack
+    }
+
     return new Promise((resolve, reject) => {
       async.each(exceptionLoggers, (logger, done) => {
-        this._broker.send(logger, new Buffer(JSON.stringify({
-          name: err.name,
-          message: err.message,
-          stack: err.stack
-        })))
+        this.queues[logger].publish(errData)
           .then(() => {
             console.log(`message written to queue ${logger}`)
             done()
