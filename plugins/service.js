@@ -144,7 +144,7 @@ class Service extends EventEmitter {
 
   pipe (data, result) {
     return new Promise((resolve, reject) => {
-      if(isEmpty(data) || isEmpty(result)) return reject(new Error('Please specify the original data and the result.'))
+      if (isEmpty(data) || isEmpty(result)) return reject(new Error('Please specify the original data and the result.'))
 
       if (process.env.OUTPUT_SCHEME === 'MERGE') {
         let outputData = JSON.stringify(Object.assign(data, result))
@@ -162,8 +162,7 @@ class Service extends EventEmitter {
           if (error) return reject(error)
           resolve()
         })
-      }
-      else if (process.env.OUTPUT_SCHEME === 'NAMESPACE') {
+      } else if (process.env.OUTPUT_SCHEME === 'NAMESPACE') {
         let outputData = JSON.stringify(Object.assign(data[process.env.OUTPUT_NAMESPACE], result))
 
         async.each(outputPipes, (outputPipe, done) => {
@@ -179,8 +178,7 @@ class Service extends EventEmitter {
           if (error) return reject(error)
           resolve()
         })
-      }
-      else if (process.env.OUTPUT_SCHEME === 'RESULT') {
+      } else if (process.env.OUTPUT_SCHEME === 'RESULT') {
         let outputData = JSON.stringify(result)
 
         async.each(outputPipes, (outputPipe, done) => {
