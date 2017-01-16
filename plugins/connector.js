@@ -68,6 +68,7 @@ class Connector extends EventEmitter {
               callback(error)
             })
         }, (error) => {
+          if (!error) console.log('Connected to queues.')
           done(error)
         })
       },
@@ -84,12 +85,14 @@ class Connector extends EventEmitter {
               callback(error)
             })
         }, (error) => {
+          if (!error) console.log('Input pipes consumed.')
           done(error)
         })
       }
     ], (error) => {
       if (error) return console.error(error)
 
+      console.log('Plugin init process done.')
       this.emit('ready')
     })
   }
@@ -102,7 +105,7 @@ class Connector extends EventEmitter {
       async.each(loggers, (logger, done) => {
         this.queues[logger].publish(logData)
           .then(() => {
-            console.log('message written to queue')
+            console.log(`message written to queue ${logger}`)
             done()
           })
           .catch((error) => {
