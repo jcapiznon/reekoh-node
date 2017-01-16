@@ -29,8 +29,8 @@ class Connector extends EventEmitter {
     this._broker = new Broker()
     let broker = this._broker
 
-    loggers.push('generic.logs')
-    exceptionLoggers.push('generic.exceptions')
+    loggers.push('agent.logs')
+    exceptionLoggers.push('agent.exceptions')
 
     async.waterfall([
       (done) => {
