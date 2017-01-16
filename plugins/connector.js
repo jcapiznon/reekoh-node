@@ -11,7 +11,6 @@ let exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
 
 class Connector extends EventEmitter {
   constructor () {
-    console.log('constructor')
     super()
 
     let dataEmitter = (msg) => {
@@ -29,8 +28,8 @@ class Connector extends EventEmitter {
     this._broker = new Broker()
     let broker = this._broker
 
-    loggers.push('generic.logs')
-    exceptionLoggers.push('generic.exceptions')
+    loggers.push('agent.logs')
+    exceptionLoggers.push('agent.exceptions')
 
     async.waterfall([
       (done) => {
@@ -98,7 +97,6 @@ class Connector extends EventEmitter {
   }
 
   log (logData) {
-    console.log('log')
     return new Promise((resolve, reject) => {
       if (isEmpty(logData)) return reject(new Error(`Please specify a data to log.`))
 
