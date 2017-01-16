@@ -5,13 +5,12 @@ let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
 let Broker = require('../lib/broker.lib')
-let inputPipes = process.env.INPUT_PIPES.split(',') // 2
+let inputPipes = process.env.INPUT_PIPES.split(',')
 let loggers = process.env.LOGGERS.split(',')
 let exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
 
 class Connector extends EventEmitter {
   constructor () {
-    console.log('constructor')
     super()
 
     let dataEmitter = (msg) => {
@@ -29,8 +28,8 @@ class Connector extends EventEmitter {
     this._broker = new Broker()
     let broker = this._broker
 
-    loggers.push('generic.logs')           // 2. 3.
-    exceptionLoggers.push('generic.exceptions')
+    loggers.push('agent.logs')
+    exceptionLoggers.push('agent.exceptions')
 
     async.waterfall([
       (done) => {
@@ -43,7 +42,7 @@ class Connector extends EventEmitter {
         })
       },
       (done) => {
-        // connect to rabbitmq 1.
+        // connect to rabbitmq
         broker.connect(process.env.BROKER)
           .then(() => {
             console.log('Connected to RabbitMQ Server.')
@@ -98,7 +97,6 @@ class Connector extends EventEmitter {
   }
 
   log (logData) {
-    console.log('log')
     return new Promise((resolve, reject) => {
       if (isEmpty(logData)) return reject(new Error(`Please specify a data to log.`))
 
