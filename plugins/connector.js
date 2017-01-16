@@ -5,7 +5,7 @@ let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
 let Broker = require('../lib/broker.lib')
-let inputPipes = process.env.INPUT_PIPES.split(',')
+let inputPipes = process.env.INPUT_PIPES.split(',') // 2
 let loggers = process.env.LOGGERS.split(',')
 let exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
 
@@ -29,7 +29,7 @@ class Connector extends EventEmitter {
     this._broker = new Broker()
     let broker = this._broker
 
-    loggers.push('generic.logs')
+    loggers.push('generic.logs')           // 2. 3.
     exceptionLoggers.push('generic.exceptions')
 
     async.waterfall([
@@ -43,7 +43,7 @@ class Connector extends EventEmitter {
         })
       },
       (done) => {
-        // connect to rabbitmq
+        // connect to rabbitmq 1.
         broker.connect(process.env.BROKER)
           .then(() => {
             console.log('Connected to RabbitMQ Server.')
