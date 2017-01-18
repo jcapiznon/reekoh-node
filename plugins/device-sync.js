@@ -135,9 +135,15 @@ class DeviceSync extends EventEmitter {
     let queue = this.queues[queueName]
 
     return new Promise((resolve, reject) => {
-      if (isEmpty(deviceInfo)) return reject(new Error('Kindly specify the device details'))
-      if (!hasProp(deviceInfo, '_id')) return reject(new Error('Kindly specify a valid id for the device'))
-      if (!hasProp(deviceInfo, 'name')) return reject(new Error('Kindly specify a valid name for the device'))
+      if (isEmpty(deviceInfo)) {
+        return reject(new Error('Kindly specify the device information/details'))
+      }
+      if (!(hasProp(deviceInfo, '_id') || hasProp(deviceInfo, 'id'))) {
+        return reject(new Error('Kindly specify a valid id for the device'))
+      }
+      if (!hasProp(deviceInfo, 'name')) {
+        return reject(new Error('Kindly specify a valid name for the device'))
+      }
 
       let message = JSON.stringify({
         operation: 'sync',

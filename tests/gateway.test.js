@@ -1,3 +1,5 @@
+/* global describe, it */
+
 'use strict'
 
 const async = require('async')
@@ -12,7 +14,6 @@ describe('Gateway Plugin Test', () => {
   process.env.EXCEPTION_LOGGERS = ''
   process.env.OUTPUT_PIPES = 'outpipe.1,outpipe.2'
 
-  process.env.PLUGIN_ID = 'demo.gateway'
   process.env.PIPELINE = 'demo.pipeline'
   process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
 
@@ -22,7 +23,6 @@ describe('Gateway Plugin Test', () => {
   let _plugin = new reekoh.plugins.Gateway()
   let _channel = null
 
-  let dummyData = { foo: 'bar' }
   let errLog = (err) => { console.log(err) }
 
   amqp.connect(process.env.BROKER)
@@ -50,7 +50,7 @@ describe('Gateway Plugin Test', () => {
   describe('#events', () => {
     it('should rcv `message` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue(process.env.PLUGIN_ID, new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue(process.env.PIPELINE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('message', (data) => {
         if (!isEqual(data, dummyData)) {
@@ -63,18 +63,16 @@ describe('Gateway Plugin Test', () => {
   })
 
   describe('#RPC', () => {
-
     it('should connect to broker', (done) => {
       _broker.connect(process.env.BROKER)
         .then(() => {
           return done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
 
     it('should spawn temporary RPC server', (done) => {
-
       // if request arrives this proc will be called
       let sampleServerProcedure = (msg) => {
         return new Promise((resolve, reject) => {
@@ -101,7 +99,6 @@ describe('Gateway Plugin Test', () => {
     })
 
     describe('.requestDeviceInfo()', () => {
-
       it('should throw error if deviceId is empty', (done) => {
         _plugin.requestDeviceInfo('', () => {})
           .then(() => {
@@ -116,23 +113,19 @@ describe('Gateway Plugin Test', () => {
       })
 
       it('should request device info', (done) => {
-        let processMsg = (ret) => {
-          async.waterfall([
-            async.constant(ret),
-            async.asyncify(JSON.parse)
-          ], (err, parsed) => {
-            done(err)
-          })
-        }
-        _plugin.requestDeviceInfo(123, processMsg)
-          .then(() => {
-            // noop!
+        _plugin.requestDeviceInfo(123)
+          .then((ret) => {
+            async.waterfall([
+              async.constant(ret),
+              async.asyncify(JSON.parse)
+            ], (err, parsed) => {
+              done(err)
+            })
           }).catch((err) => {
             done(err)
           })
       })
     })
-
   })
 
   describe('#pipe()', () => {
@@ -166,7 +159,6 @@ describe('Gateway Plugin Test', () => {
           done(new Error('publish message fail.', err))
         })
     })
-
   })
 
   describe('#relayMessage()', () => {
@@ -273,12 +265,12 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-        if (!isEqual(err, new Error('Kindly specify a valid id for the device'))) {
-          done(new Error(ERR_RETURN_UNMATCH))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(err, new Error('Kindly specify a valid id for the device'))) {
+            done(new Error(ERR_RETURN_UNMATCH))
+          } else {
+            done()
+          }
+        })
     })
 
     it('should throw error if deviceInfo doesnt have `name` property', (done) => {

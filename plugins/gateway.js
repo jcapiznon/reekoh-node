@@ -33,7 +33,7 @@ class Gateway extends EventEmitter {
       loggers: ['agent.logs'],
       exceptionLoggers: ['agent.exceptions'],
       common: [
-        this.QN_PIPELINE,
+        this.QN_PLUGIN_ID,
         this.QN_AGENT_DATA,
         this.QN_AGENT_DEVICES,
         this.QN_AGENT_MESSAGES
@@ -139,19 +139,19 @@ class Gateway extends EventEmitter {
 
       // setting up RPC queue
       (done) => {
-        let queueName =  _self.QN_AGENT_DEVICE_INFO
+        let queueName = _self.QN_AGENT_DEVICE_INFO
         _broker.newRpc('client', queueName)
           .then((queue) => {
             if (queue) _self.queues[queueName] = queue
             return done() || null
           }).catch((err) => {
-          done(err)
-        })
+            done(err)
+          })
       },
 
       // initialize topic exhange for messages
       (done) => {
-        let queueName = _self.QN_PLUGIN_ID
+        let queueName = _self.QN_PIPELINE
 
         let processTopicData = (msg) => {
           if (!isEmpty(msg)) {
@@ -176,22 +176,6 @@ class Gateway extends EventEmitter {
             return queue.consume(processTopicData)
           }).then(() => {
             return done() || null // !
-          }).catch((err) => {
-            done(err)
-          })
-      },
-
-      // listen to input pipe, then relay to plugin queue
-      (done) => {
-        let pipe = _self.QN_PIPELINE
-        let plugin = _self.QN_PLUGIN_ID
-
-        _self.queues[pipe].consume((msg) => {
-          _self.queues[plugin].publish(msg.content.toString('utf8'))
-        })
-          .then((msg) => {
-            // console.log('Gateway Consuming:', msg)
-            return done()
           }).catch((err) => {
             done(err)
           })
@@ -235,7 +219,7 @@ class Gateway extends EventEmitter {
         })
       }
 
-      let sendToSanitizer= () => {
+      let sendToSanitizer = () => {
         let queueName = this.QN_AGENT_DATA
         let queue = this.queues[queueName]
 
@@ -338,28 +322,20 @@ class Gateway extends EventEmitter {
     })
   }
 
-  // NOTE! ask benj what to do after publish,
-  // rpc expects to have a process attached with them after publish
-
-  requestDeviceInfo (deviceId, callback) {
+  requestDeviceInfo (deviceId) {
     let queueName = this.QN_AGENT_DEVICE_INFO
     let queue = this.queues[queueName]
 
     return new Promise((resolve, reject) => {
-      if (!deviceId) {
-        return reject(new Error('Kindly specify the device identifier'))
-      }
+      if (!deviceId) return reject(new Error('Kindly specify the device identifier'))
 
-      let data = JSON.stringify({device: { _id: deviceId }})
-
-      queue.publish(data, callback)
-        .then(() => {
-          resolve()
+      queue.publish(JSON.stringify({device: { _id: deviceId }}))
+        .then((reply) => {
+          resolve(reply)
         }).catch((err) => {
-        reject(err)
-      })
+          reject(err)
+        })
     })
-
   }
 
   syncDevice (deviceInfo, deviceType) {

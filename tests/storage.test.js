@@ -1,3 +1,5 @@
+/* global describe, it */
+
 'use strict'
 
 let amqp = require('amqplib')
@@ -15,15 +17,26 @@ describe('Storage Plugin Test', () => {
   let _plugin = new reekoh.plugins.Storage()
   let _channel = null
 
-  let dummyData = { foo: 'bar' }
-  let errLog = (err) => { console.log(err) }
+  // -- err msgs
+
+  const ERR_RETURN_UNMATCH = 'Returned value not matched.'
+  const ERR_EXPECT_REJECTION = 'Expecting rejection. Check your test data.'
+  const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log'
+  const ERR_EMPTY_LOG_DATA = 'Kindly specify the data to log'
+
+  const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
+  const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
+
+  // -- tester connection
 
   amqp.connect(process.env.BROKER)
     .then((conn) => {
       return conn.createChannel()
     }).then((channel) => {
-      _channel = channel
-    }).catch(errLog)
+    _channel = channel
+  }).catch((err) => {
+    console.log(err)
+  })
 
   // --- tests
 
@@ -40,33 +53,58 @@ describe('Storage Plugin Test', () => {
       _channel.sendToQueue(process.env.INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('data', (data) => {
-        if (!isEqual(dummyData, data)) return should.fail('rcv data must be same')
-        done()
+        if (!isEqual(dummyData, data)) return done()
+        done(new Error(ERR_RETURN_UNMATCH))
       })
     })
   })
 
   describe('#logging', () => {
-    it('should send a log to logger queues', (done) => {
-      _plugin.log('dummy log data')
-        .then(() => {
-          done()
-        }).catch(() => {
-          done(new Error('send using logger fail.'))
+    describe('.log()', () => {
+      it('should throw error if logData is empty', (done) => {
+        _plugin.log('')
+          .then(() => {
+            done(new Error(ERR_EXPECT_REJECTION))
+          }).catch((err) => {
+          if (!isEqual(err.message, ERR_EMPTY_LOG_DATA)) {
+            done(new Error(ERR_RETURN_UNMATCH))
+          } else {
+            done()
+          }
         })
+      })
+
+      it('should send a log to logger queues', (done) => {
+        _plugin.log('dummy log data')
+          .then(() => {
+            done()
+          }).catch((err) => {
+          done(err)
+        })
+      })
     })
 
-    it('should send an error if log data is empty', (done) => {
-
-    })
-
-    it('should send an exception log to exception logger queues', (done) => {
-      _plugin.logException(new Error('tests'))
-        .then(() => {
-          done()
-        }).catch(() => {
-          done(new Error('send using exception logger fail.'))
+    describe('.logException()', () => {
+      it('should throw error if param is not an Error instance', (done) => {
+        _plugin.logException('')
+          .then(() => {
+            done(new Error(ERR_EXPECT_REJECTION))
+          }).catch((err) => {
+          if (!isEqual(err.message, ERR_NOT_ERRINSTANCE)) {
+            done(new Error(ERR_RETURN_UNMATCH))
+          } else {
+            done()
+          }
         })
+      })
+      it('should send an exception log to exception logger queues', (done) => {
+        _plugin.logException(new Error('test'))
+          .then(() => {
+            done()
+          }).catch((err) => {
+          done(err)
+        })
+      })
     })
   })
 })
