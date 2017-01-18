@@ -1,55 +1,64 @@
-/* global describe, it */
+/* global describe, it, before, after */
 
 'use strict'
 
-let amqp = require('amqplib')
-let reekoh = require('../app.js')
-let isEqual = require('lodash.isequal')
+let _conn = null
+let _plugin = null
+let _channel = null
+
+const amqp = require('amqplib')
+const reekoh = require('../app.js')
+const isEqual = require('lodash.isequal')
+
+const ERR_RETURN_UNMATCH = 'Returned value not matched.'
+const ERR_EMPTY_LOG_DATA = 'Kindly specify the data to log'
+const ERR_EXPECT_REJECTION = 'Expecting rejection. Check your test data.'
+const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log'
+
+const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
+const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
 
 describe('Channel Plugin Test', () => {
-  // --- preparation
+  before('#test init', () => {
+    process.env.LOGGERS = ''
+    process.env.EXCEPTION_LOGGERS = ''
+    process.env.INPUT_PIPE = 'demo.pipe.channel'
+    process.env.PLUGIN_ID = 'demo.plugin.channel'
+    process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
 
-  process.env.LOGGERS = ''
-  process.env.EXCEPTION_LOGGERS = ''
-  process.env.INPUT_PIPE = 'demo.pipe.channel'
-  process.env.PLUGIN_ID = 'demo.plugin.channel'
-  process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
+    amqp.connect(process.env.BROKER)
+      .then((conn) => {
+        _conn = conn
+        return conn.createChannel()
+      }).then((channel) => {
+        _channel = channel
+      }).catch((err) => {
+        console.log(err)
+      })
+  })
 
-  let _channel = null
-  let _plugin = new reekoh.plugins.Channel()
-
-  // -- err msgs
-
-  const ERR_RETURN_UNMATCH = 'Returned value not matched.'
-  const ERR_EXPECT_REJECTION = 'Expecting rejection. Check your test data.'
-  const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log'
-  const ERR_EMPTY_LOG_DATA = 'Kindly specify the data to log'
-
-  const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
-  const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
-
-  // -- tester connection
-
-  amqp.connect(process.env.BROKER)
-    .then((conn) => {
-      return conn.createChannel()
-    }).then((channel) => {
-      _channel = channel
-    }).catch((err) => {
-      console.log(err)
-    })
-
-  // --- tests
+  after('terminate connection', () => {
+    _conn.close()
+  })
 
   describe('#spawn', () => {
     it('should spawn the class without error', (done) => {
-      _plugin.once('ready', () => {
+      try {
+        _plugin = new reekoh.plugins.Channel()
         done()
-      })
+      } catch (err) {
+        done(err)
+      }
     })
   })
 
   describe('#events', () => {
+    it('should rcv `ready` event', (done) => {
+      _plugin.once('ready', () => {
+        done()
+      })
+    })
+
     it('should rcv `data` event', (done) => {
       let dummyData = { 'foo': 'bar' }
       _channel.sendToQueue(process.env.INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))

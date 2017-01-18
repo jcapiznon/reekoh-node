@@ -30,14 +30,14 @@ class Gateway extends EventEmitter {
     this.QN_PIPELINE = process.env.PIPELINE || 'demo.pipeline'
 
     this.qn = {
-      loggers: ['agent.logs'],
-      exceptionLoggers: ['agent.exceptions'],
       common: [
         this.QN_PLUGIN_ID,
         this.QN_AGENT_DATA,
         this.QN_AGENT_DEVICES,
         this.QN_AGENT_MESSAGES
-      ]
+      ],
+      loggers: ['agent.logs'],
+      exceptionLoggers: ['agent.exceptions']
     }
 
     let _self = this
@@ -67,7 +67,6 @@ class Gateway extends EventEmitter {
       (done) => {
         _broker.connect(_brokerConnStr)
           .then(() => {
-            // console.log('Connected to RabbitMQ Server.')
             return done() || null // !
           }).catch((err) => {
             done(err)
@@ -88,26 +87,20 @@ class Gateway extends EventEmitter {
       // prepare certs/keys needed by SDK plugin developer
       (done) => {
         let root = process.cwd()
-        let keysDir = path.join(root, 'keys')
+        let home = path.join(root, 'keys')
 
-        let pathCa = path.join(keysDir, 'server-ca.pem')
-        let pathCrl = path.join(keysDir, 'server-crl.pem')
-        let pathKey = path.join(keysDir, 'server-key.pem')
-        let pathCert = path.join(keysDir, 'server-cert.pem')
+        if (!fs.existsSync(home)) fs.mkdirSync(home)
 
-        if (!fs.existsSync(keysDir)) fs.mkdirSync(keysDir)
-
-        // helper. less code less debug
         let writer = (content, filePath, callback) => {
           if (isEmpty(content)) return callback(null, '')
           fs.writeFile(filePath, content, (err) => { callback(err, filePath) })
         }
 
         async.series({
-          ca: (callback) => { writer(process.env.CA, pathCa, callback) },
-          crl: (callback) => { writer(process.env.CRL, pathCrl, callback) },
-          key: (callback) => { writer(process.env.KEY, pathKey, callback) },
-          cert: (callback) => { writer(process.env.CERT, pathCert, callback) }
+          ca: (callback) => { writer(process.env.CA, path.join(home, 'server-ca.pem'), callback) },
+          crl: (callback) => { writer(process.env.CRL, path.join(home, 'server-crl.pem'), callback) },
+          key: (callback) => { writer(process.env.KEY, path.join(home, 'server-key.pem'), callback) },
+          cert: (callback) => { writer(process.env.CERT, path.join(home, 'server-cert.pem'), callback) }
         }, (err, res) => {
           Object.assign(_self, res)
           done(err)
@@ -117,6 +110,7 @@ class Gateway extends EventEmitter {
       // setting up generic queues
       (done) => {
         let queueIDs = []
+
         queueIDs = queueIDs.concat(_self.qn.common)
         queueIDs = queueIDs.concat(_self.qn.loggers)
         queueIDs = queueIDs.concat(_self.qn.outPipes)
@@ -135,18 +129,6 @@ class Gateway extends EventEmitter {
         }, (err) => {
           done(err)
         })
-      },
-
-      // setting up RPC queue
-      (done) => {
-        let queueName = _self.QN_AGENT_DEVICE_INFO
-        _broker.newRpc('client', queueName)
-          .then((queue) => {
-            if (queue) _self.queues[queueName] = queue
-            return done() || null
-          }).catch((err) => {
-            done(err)
-          })
       },
 
       // initialize topic exhange for messages
@@ -179,6 +161,18 @@ class Gateway extends EventEmitter {
           }).catch((err) => {
             done(err)
           })
+      },
+
+      // setting up RPC queue
+      (done) => {
+        let queueName = _self.QN_AGENT_DEVICE_INFO
+        _broker.newRpc('client', queueName)
+          .then((queue) => {
+            if (queue) _self.queues[queueName] = queue
+            return done() || null
+          }).catch((err) => {
+          done(err)
+        })
       }
 
       // plugin initialized
@@ -432,7 +426,7 @@ class Gateway extends EventEmitter {
 
       // loggers and custom loggers are in self.loggers array
       async.each(self.qn.loggers, (loggerId, callback) => {
-        if (isEmpty(loggerId)) return callback()
+        if (!loggerId) return callback()
 
         // publish() has a built in stringify, so objects are safe to feed
         self.queues[loggerId].publish(logData)
@@ -460,9 +454,8 @@ class Gateway extends EventEmitter {
         stack: err.stack
       })
 
-      // exLoggers and custom exLoggers are in self.loggers array
       async.each(self.qn.exceptionLoggers, (loggerId, callback) => {
-        if (isEmpty(loggerId)) return callback()
+        if (!loggerId) return callback()
 
         self.queues[loggerId].publish(data)
           .then(() => {

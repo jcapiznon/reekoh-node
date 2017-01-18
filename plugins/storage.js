@@ -17,11 +17,11 @@ class Storage extends EventEmitter {
     this.QN_INPUT_PIPE = process.env.INPUT_PIPE || 'demo.storage'
 
     this.qn = {
-      loggers: ['agent.logs'],
-      exceptionLoggers: ['agent.exceptions'],
       common: [
         this.QN_INPUT_PIPE
-      ]
+      ],
+      loggers: ['agent.logs'],
+      exceptionLoggers: ['agent.exceptions']
     }
 
     let _self = this
@@ -57,7 +57,6 @@ class Storage extends EventEmitter {
       (done) => {
         _broker.connect(_brokerConnStr)
           .then(() => {
-            // console.log('Connected to RabbitMQ Server.')
             return done() || null // !
           }).catch((err) => {
             done(err)
@@ -67,6 +66,7 @@ class Storage extends EventEmitter {
       // setting up generic queues
       (done) => {
         let queueIDs = []
+
         queueIDs = queueIDs.concat(_self.qn.common)
         queueIDs = queueIDs.concat(_self.qn.loggers)
         queueIDs = queueIDs.concat(_self.qn.exceptionLoggers)
@@ -103,16 +103,16 @@ class Storage extends EventEmitter {
         let queueName = _self.QN_INPUT_PIPE
         _self.queues[queueName].consume(processTask)
           .then((msg) => {
-            // console.log('Storage Consuming:', msg)
             return done()
           }).catch((err) => {
             done(err)
           })
       }
 
-      // plugin initialized
     ], (err) => {
       if (err) return console.error('Storage: ', err)
+
+      // plugin initialized
       _self.emit('ready')
     })
   }
@@ -125,7 +125,7 @@ class Storage extends EventEmitter {
 
       // loggers and custom loggers are in self.loggers array
       async.each(self.qn.loggers, (loggerId, callback) => {
-        if (isEmpty(loggerId)) return callback()
+        if (!loggerId) return callback()
 
         // publish() has a built in stringify, so objects are safe to feed
         self.queues[loggerId].publish(logData)
@@ -153,9 +153,8 @@ class Storage extends EventEmitter {
         stack: err.stack
       })
 
-      // exLoggers and custom exLoggers are in self.loggers array
       async.each(self.qn.exceptionLoggers, (loggerId, callback) => {
-        if (isEmpty(loggerId)) return callback()
+        if (!loggerId) return callback()
 
         self.queues[loggerId].publish(data)
           .then(() => {

@@ -45,7 +45,7 @@ class Channel extends EventEmitter {
     _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.concat(_exLoggerIDs.split(','))
     _self.qn.loggers = _self.qn.loggers.concat(_loggerIDs.split(','))
 
-    // removing empty elements
+    // removing empty elements if any
     _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.filter(Boolean)
     _self.qn.loggers = _self.qn.loggers.filter(Boolean)
 
@@ -119,7 +119,7 @@ class Channel extends EventEmitter {
         })
       },
 
-      // settopic exchnage queue and consume
+      // set topic exchnage queue and consume
       (done) => {
         let queueName = _self.QN_PLUGIN_ID
 
@@ -167,6 +167,39 @@ class Channel extends EventEmitter {
 
       // plugin initialized
       _self.emit('ready')
+    })
+  }
+
+  relayMessage (message, deviceTypes, devices) {
+    let queueName = this.QN_AGENT_MESSAGES
+    let queue = this.queues[queueName]
+
+    return new Promise((resolve, reject) => {
+      if (!message) {
+        return reject(new Error('Kindly specify the command/message to send'))
+      }
+      if (isEmpty(devices) && isEmpty(deviceTypes)) {
+        return reject(new Error('Kindly specify the target device types or devices'))
+      }
+
+      if ((isString(devices) || isArray(devices)) &&
+        (isString(deviceTypes) || isArray(deviceTypes))) {
+        let data = JSON.stringify({
+          pipeline: process.env.PIPELINE,
+          message: message,
+          deviceTypes: deviceTypes,
+          devices: devices
+        })
+
+        queue.publish(data)
+          .then(() => {
+            resolve()
+          }).catch((err) => {
+            reject(err)
+          })
+      } else {
+        return reject(new Error("'devices' and 'deviceTypes' must be a string or an array."))
+      }
     })
   }
 
@@ -223,39 +256,6 @@ class Channel extends EventEmitter {
         if (err) return reject(err)
         resolve()
       })
-    })
-  }
-
-  relayMessage (message, deviceTypes, devices) {
-    let queueName = this.QN_AGENT_MESSAGES
-    let queue = this.queues[queueName]
-
-    return new Promise((resolve, reject) => {
-      if (!message) {
-        return reject(new Error('Kindly specify the command/message to send'))
-      }
-      if (isEmpty(devices) && isEmpty(deviceTypes)) {
-        return reject(new Error('Kindly specify the target device types or devices'))
-      }
-
-      if ((isString(devices) || isArray(devices)) &&
-        (isString(deviceTypes) || isArray(deviceTypes))) {
-        let data = JSON.stringify({
-          pipeline: process.env.PIPELINE,
-          message: message,
-          deviceTypes: deviceTypes,
-          devices: devices
-        })
-
-        queue.publish(data)
-          .then(() => {
-            resolve()
-          }).catch((err) => {
-            reject(err)
-          })
-      } else {
-        return reject(new Error("'devices' and 'deviceTypes' must be a string or an array."))
-      }
     })
   }
 

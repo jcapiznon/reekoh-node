@@ -1,60 +1,70 @@
-/* global describe, it */
+/* global describe, it, before, after */
 
 'use strict'
+
+let _conn = null
+let _plugin = null
+let _channel = null
 
 let amqp = require('amqplib')
 let reekoh = require('../app.js')
 let isEqual = require('lodash.isequal')
 
+const ERR_RETURN_UNMATCH = 'Returned value not matched.'
+const ERR_EMPTY_LOG_DATA = 'Kindly specify the data to log'
+const ERR_EXPECT_REJECTION = 'Expecting rejection. Check your test data.'
+const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log'
+
 describe('Storage Plugin Test', () => {
-  // --- preparation
-  process.env.LOGGERS = ''
-  process.env.EXCEPTION_LOGGERS = ''
+  before('#test init', () => {
+    process.env.LOGGERS = ''
+    process.env.EXCEPTION_LOGGERS = ''
+    process.env.INPUT_PIPE = 'demo.storage'
+    process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
 
-  process.env.INPUT_PIPE = 'demo.storage'
-  process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
-
-  let _plugin = new reekoh.plugins.Storage()
-  let _channel = null
-
-  // -- err msgs
-
-  const ERR_RETURN_UNMATCH = 'Returned value not matched.'
-  const ERR_EXPECT_REJECTION = 'Expecting rejection. Check your test data.'
-  const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log'
-  const ERR_EMPTY_LOG_DATA = 'Kindly specify the data to log'
-
-  const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
-  const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
-
-  // -- tester connection
-
-  amqp.connect(process.env.BROKER)
-    .then((conn) => {
-      return conn.createChannel()
-    }).then((channel) => {
-    _channel = channel
-  }).catch((err) => {
-    console.log(err)
+    amqp.connect(process.env.BROKER)
+      .then((conn) => {
+        _conn = conn
+        return conn.createChannel()
+      }).then((channel) => {
+        _channel = channel
+      }).catch((err) => {
+        console.log(err)
+      })
   })
 
-  // --- tests
+  after('terminate connection', () => {
+    _conn.close()
+  })
 
   describe('#spawn', () => {
     it('should spawn the class without error', (done) => {
-      _plugin.once('ready', () => {
+      try {
+        _plugin = new reekoh.plugins.Storage()
         done()
-      })
+      } catch (err) {
+        done(err)
+      }
     })
   })
 
   describe('#events', () => {
-    it('should recieve data from input pipe queue', (done) => {
+    it('should rcv `ready` event', (done) => {
+      _plugin.once('ready', () => {
+        done()
+      })
+    })
+
+    it('should rcv `data` event', (done) => {
+      let dummyData = { 'foo': 'bar' }
       _channel.sendToQueue(process.env.INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('data', (data) => {
-        if (!isEqual(dummyData, data)) return done()
-        done(new Error(ERR_RETURN_UNMATCH))
+        if (!isEqual(dummyData, data)) {
+          done(new Error(ERR_RETURN_UNMATCH))
+        } else {
+          done()
+        }
       })
     })
   })
@@ -66,12 +76,12 @@ describe('Storage Plugin Test', () => {
           .then(() => {
             done(new Error(ERR_EXPECT_REJECTION))
           }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_LOG_DATA)) {
-            done(new Error(ERR_RETURN_UNMATCH))
-          } else {
-            done()
-          }
-        })
+            if (!isEqual(err.message, ERR_EMPTY_LOG_DATA)) {
+              done(new Error(ERR_RETURN_UNMATCH))
+            } else {
+              done()
+            }
+          })
       })
 
       it('should send a log to logger queues', (done) => {
@@ -79,8 +89,8 @@ describe('Storage Plugin Test', () => {
           .then(() => {
             done()
           }).catch((err) => {
-          done(err)
-        })
+            done(err)
+          })
       })
     })
 
@@ -90,20 +100,20 @@ describe('Storage Plugin Test', () => {
           .then(() => {
             done(new Error(ERR_EXPECT_REJECTION))
           }).catch((err) => {
-          if (!isEqual(err.message, ERR_NOT_ERRINSTANCE)) {
-            done(new Error(ERR_RETURN_UNMATCH))
-          } else {
-            done()
-          }
-        })
+            if (!isEqual(err.message, ERR_NOT_ERRINSTANCE)) {
+              done(new Error(ERR_RETURN_UNMATCH))
+            } else {
+              done()
+            }
+          })
       })
       it('should send an exception log to exception logger queues', (done) => {
         _plugin.logException(new Error('test'))
           .then(() => {
             done()
           }).catch((err) => {
-          done(err)
-        })
+            done(err)
+          })
       })
     })
   })

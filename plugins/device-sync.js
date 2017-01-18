@@ -20,12 +20,12 @@ class DeviceSync extends EventEmitter {
     this.QN_PLUGIN_ID = process.env.PLUGIN_ID || 'demo.dev-sync'
 
     this.qn = {
-      loggers: ['agent.logs'],
-      exceptionLoggers: ['agent.exceptions'],
       common: [
         this.QN_PLUGIN_ID,
         this.QN_AGENT_DEVICES
-      ]
+      ],
+      loggers: ['agent.logs'],
+      exceptionLoggers: ['agent.exceptions']
     }
 
     let _self = this
@@ -71,6 +71,7 @@ class DeviceSync extends EventEmitter {
       // setting up generic queues
       (done) => {
         let queueIDs = []
+
         queueIDs = queueIDs.concat(_self.qn.common)
         queueIDs = queueIDs.concat(_self.qn.loggers)
         queueIDs = queueIDs.concat(_self.qn.exceptionLoggers)
@@ -123,9 +124,10 @@ class DeviceSync extends EventEmitter {
           })
       }
 
-    // plugin initialized
     ], (err) => {
       if (err) return console.error('DeviceSync:', err)
+
+      // plugin initialized
       _self.emit('ready')
     })
   }
@@ -187,7 +189,7 @@ class DeviceSync extends EventEmitter {
 
       // loggers and custom loggers are in self.loggers array
       async.each(self.qn.loggers, (loggerId, callback) => {
-        if (isEmpty(loggerId)) return callback()
+        if (!loggerId) return callback()
 
         // publish() has a built in stringify, so objects are safe to feed
         self.queues[loggerId].publish(logData)
@@ -217,7 +219,7 @@ class DeviceSync extends EventEmitter {
 
       // exLoggers and custom exLoggers are in self.loggers array
       async.each(self.qn.exceptionLoggers, (loggerId, callback) => {
-        if (isEmpty(loggerId)) return callback()
+        if (!loggerId) return callback()
 
         self.queues[loggerId].publish(data)
           .then(() => {

@@ -1,6 +1,11 @@
-/* global describe, it */
+/* global describe, it, before, after */
 
 'use strict'
+
+let _conn = null
+let _broker = null
+let _plugin = null
+let _channel = null
 
 const async = require('async')
 const amqp = require('amqplib')
@@ -8,53 +13,70 @@ const reekoh = require('../app.js')
 const isEqual = require('lodash.isequal')
 const Broker = require('../lib/broker.lib.js')
 
+const QN_AGENT_DEVICE_INFO = 'agent.deviceinfo'
+const ERR_RETURN_UNMATCH = 'Returned value not matched.'
+const ERR_EXPECT_REJECTION = 'Expecting rejection. check function test param.'
+const ERR_EMPTY_IDENTIFIER = 'Kindly specify the device identifier'
+const ERR_EMPTY_DEVICE_ID = 'Kindly specify a valid id for the device'
+const ERR_EMPTY_DEVICE_NAME = 'Kindly specify a valid name for the device'
+const ERR_EMPTY_DEVICE_INFO = 'Kindly specify the device information/details'
+const ERR_EMPTY_DEVICE_STATE = 'Kindly specify the device state'
+const ERR_EMPTY_DATA_TO_FORWARD = 'Kindly specify the data to forward'
+const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
+const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
+
 describe('Gateway Plugin Test', () => {
-  // --- preparation
-  process.env.LOGGERS = ''
-  process.env.EXCEPTION_LOGGERS = ''
-  process.env.OUTPUT_PIPES = 'outpipe.1,outpipe.2'
 
-  process.env.PIPELINE = 'demo.pipeline'
-  process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
+  before('#test init', () => {
+    process.env.LOGGERS = ''
+    process.env.EXCEPTION_LOGGERS = ''
 
-  const QN_AGENT_DEVICE_INFO = 'agent.deviceinfo'
+    process.env.PIPELINE = 'demo.pipeline'
+    process.env.OUTPUT_PIPES = 'outpipe.1,outpipe.2'
+    process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
 
-  let _broker = new Broker()
-  let _plugin = new reekoh.plugins.Gateway()
-  let _channel = null
+    _broker = new Broker() // tester broker
 
-  let errLog = (err) => { console.log(err) }
+    amqp.connect(process.env.BROKER)
+      .then((conn) => {
+        _conn = conn
+        return conn.createChannel()
+      }).then((channel) => {
+        _channel = channel
+      }).catch((err) => {
+        console.log(err)
+      })
+  })
 
-  amqp.connect(process.env.BROKER)
-    .then((conn) => {
-      return conn.createChannel()
-    }).then((channel) => {
-      _channel = channel
-    }).catch(errLog)
-
-  // --- tests
-
-  const ERR_RETURN_UNMATCH = 'Returned value not matched.'
-  const ERR_EXPECT_REJECTION = 'Expecting rejection. check function test param.'
-
-  const ERR_EMPTY_IDENTIFIER = 'Kindly specify the device identifier'
+  after('terminate connection', () => {
+    _conn.close()
+  })
 
   describe('#spawn', () => {
     it('should spawn the class without error', (done) => {
-      _plugin.once('ready', () => {
+      try {
+        _plugin = new reekoh.plugins.Gateway()
         done()
-      })
+      } catch (err) {
+        done(err)
+      }
     })
   })
 
   describe('#events', () => {
+    it('should rcv `ready` event', (done) => {
+      _plugin.once('ready', () => {
+        done()
+      })
+    })
+
     it('should rcv `message` event', (done) => {
       let dummyData = { 'foo': 'bar' }
       _channel.sendToQueue(process.env.PIPELINE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('message', (data) => {
         if (!isEqual(data, dummyData)) {
-          done(new Error('Rcvd data not matched'))
+          done(new Error(ERR_RETURN_UNMATCH))
         } else {
           done()
         }
@@ -104,7 +126,7 @@ describe('Gateway Plugin Test', () => {
           .then(() => {
             // noop!
           }).catch((err) => {
-            if (!isEqual(err, new Error(ERR_EMPTY_IDENTIFIER))) {
+            if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
               done(new Error(ERR_RETURN_UNMATCH))
             } else {
               done()
@@ -134,7 +156,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify the data to forward'))) {
+          if (!isEqual(err.message, ERR_EMPTY_DATA_TO_FORWARD)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -147,7 +169,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-          done(new Error('publish message fail.', err))
+          done(err)
         })
     })
 
@@ -156,7 +178,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-          done(new Error('publish message fail.', err))
+          done(err)
         })
     })
   })
@@ -167,7 +189,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify the command/message to send'))) {
+          if (!isEqual(err.message, ERR_EMPTY_CMD_TO_SEND)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -180,7 +202,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify the target device types or devices'))) {
+          if (!isEqual(err.message, ERR_EMPTY_DEVICE_OR_DEVICE_TYPES)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -193,7 +215,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-          done(new Error('publish message fail.', err))
+          done(err)
         })
     })
   })
@@ -204,7 +226,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(new Error(ERR_EMPTY_IDENTIFIER), err)) {
+          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -228,7 +250,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(new Error(ERR_EMPTY_IDENTIFIER), err)) {
+          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -252,7 +274,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify the device information/details'))) {
+          if (!isEqual(err.message, ERR_EMPTY_DEVICE_INFO)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -265,7 +287,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify a valid id for the device'))) {
+          if (!isEqual(err.message, ERR_EMPTY_DEVICE_ID)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -278,7 +300,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify a valid name for the device'))) {
+          if (!isEqual(err.message, ERR_EMPTY_DEVICE_NAME)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -302,7 +324,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(new Error(ERR_EMPTY_IDENTIFIER), err)) {
+          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -326,7 +348,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(new Error(ERR_EMPTY_IDENTIFIER), err)) {
+          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -339,7 +361,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error(ERR_EXPECT_REJECTION))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Kindly specify the device state'))) {
+          if (!isEqual(err.message, ERR_EMPTY_DEVICE_STATE)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
@@ -362,8 +384,8 @@ describe('Gateway Plugin Test', () => {
       _plugin.log('dummy log data')
         .then(() => {
           done()
-        }).catch(() => {
-          done(new Error('send using logger fail.'))
+        }).catch((err) => {
+          done(err)
         })
     })
 
@@ -371,8 +393,8 @@ describe('Gateway Plugin Test', () => {
       _plugin.logException(new Error('tests'))
         .then(() => {
           done()
-        }).catch(() => {
-          done(new Error('send using exception logger fail.'))
+        }).catch((err) => {
+          done(err)
         })
     })
   })
