@@ -4,14 +4,14 @@
   "description": "Reekoh SDK",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "gulp test"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Reekoh/reekoh-node.git"
   },
-  "author": "Reekoh Inc.",
-  "license": "ISC",
+  "author": "Reekoh, Inc.",
+  "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/Reekoh/reekoh-node/issues"
   },
