@@ -1,85 +1,89 @@
 'use strict'
 
-let async = require('async')
-let hasProp = require('lodash.has')
-let isEmpty = require('lodash.isempty')
-// let isString = require('lodash.isstring')
+const async = require('async')
+const hasProp = require('lodash.has')
+const isEmpty = require('lodash.isempty')
 
-let Promise = require('bluebird')
-let Broker = require('../lib/broker.lib.js')
-let EventEmitter = require('events').EventEmitter
+const Promise = require('bluebird')
+const Broker = require('../lib/broker.lib.js')
+const EventEmitter = require('events').EventEmitter
 
 class DeviceSync extends EventEmitter {
 
-  constructor (config) {
+  constructor () {
     super()
 
     this.config = {}
     this.queues = []
-    this.loggers = []
-    this.exceptionLoggers = []
 
-    this.QN_GENERIC_LOGS = 'generic.logs'
-    this.QN_GENERIC_DEVICES = 'generic.devices'
-    this.QN_GENERIC_EXCEPTIONS = 'generic.exceptions'
+    this.QN_AGENT_DEVICES = 'agent.devices'
+    this.QN_PLUGIN_ID = process.env.PLUGIN_ID || 'demo.dev-sync'
+
+    this.qn = {
+      loggers: ['agent.logs'],
+      exceptionLoggers: ['agent.exceptions'],
+      common: [
+        this.QN_PLUGIN_ID,
+        this.QN_AGENT_DEVICES
+      ]
+    }
 
     let _self = this
     let _broker = new Broker()
+
+    let _config = process.env.CONFIG || '{}'
+    let _loggerIDs = process.env.LOGGERS || ''
+    let _exLoggerIDs = process.env.EXCEPTION_LOGGERS || ''
     let _brokerConnStr = process.env.BROKER || 'amqp://guest:guest@127.0.0.1/'
 
-    let _config = proces.env.CONFIG || {}
-    let _loggerIDs = process.env.LOGGERS || ''
-    let _exceptionLoggerIDs = process.env.EXCEPTION_LOGGERS || ''
-    let _pluginID = process.env.PLUGIN_ID || 'demo.dev-sync'
+    // preparing logger queue names in array
+    _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.concat(_exLoggerIDs.split(','))
+    _self.qn.loggers = _self.qn.loggers.concat(_loggerIDs.split(','))
 
-    //  preparing logger queue names in array
-    _self.loggers = _loggerIDs.split(',')
-    _self.exceptionLoggers = _exceptionLoggerIDs.split(',')
-    _self.exceptionLoggers.push(_self.QN_GENERIC_EXCEPTIONS)
-    _self.loggers.push(_self.QN_GENERIC_LOGS)
-
+    // removing empty elements in any (guard)
+    _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.filter(Boolean)
+    _self.qn.loggers = _self.qn.loggers.filter(Boolean)
 
     async.waterfall([
 
-      // parse config asynchronously
+      // parse config trap error
       (done) => {
         async.waterfall([
           async.constant(_config.toString('utf8')),
           async.asyncify(JSON.parse)
-        ], (err, parsedConfig) => {
-          _self.config = parsedConfig
+        ], (err, parsed) => {
+          _self.config = parsed
           done(err)
         })
       },
 
       // connecting to rabbitMQ
       (done) => {
-        return _broker.connect(_brokerConnStr)
+        _broker.connect(_brokerConnStr)
           .then(() => {
-            console.log('Connected to RabbitMQ Server.')
+            // console.log('Connected to RabbitMQ Server.')
             return done() || null // !
           }).catch((err) => {
             done(err)
           })
       },
 
-      // setting up messaging queues
+      // setting up generic queues
       (done) => {
-        let queueIDs = [_pluginID, _self.QN_GENERIC_DEVICES]
-
-        queueIDs = queueIDs
-          .concat(_self.loggers)
-          .concat(_self.exceptionLoggers)
+        let queueIDs = []
+        queueIDs = queueIDs.concat(_self.qn.common)
+        queueIDs = queueIDs.concat(_self.qn.loggers)
+        queueIDs = queueIDs.concat(_self.qn.exceptionLoggers)
 
         async.each(queueIDs, (loggerId, callback) => {
           if (isEmpty(loggerId)) return callback()
 
           _broker.newQueue(loggerId)
             .then((queue) => {
-              _self.queues[loggerId] = queue
+              if (queue) _self.queues[loggerId] = queue
               return callback() || null // !
             }).catch((err) => {
-              console.error('newQueue:', err)
+              console.error('DeviceSync newQueue() ', err)
             })
         }, (err) => {
           done(err)
@@ -88,13 +92,14 @@ class DeviceSync extends EventEmitter {
 
       // process/listen for queued items
       (done) => {
-        let processQueue = (msg) => {
+        let processTask = (msg) => {
           if (!isEmpty(msg)) {
             async.waterfall([
               async.constant(msg.content.toString('utf8')),
               async.asyncify(JSON.parse)
             ], (err, task) => {
-              if (err) return console.error(err)
+              if (err) return console.error('DeviceSync processQueue() rcvd data is not a JSON.', err)
+
               if (task.operation === 'sync') {
                 _self.emit('sync')
               } else if (task.operation === 'adddevice') {
@@ -108,9 +113,10 @@ class DeviceSync extends EventEmitter {
           }
         }
 
-        _self.queues[_pluginID].consume(processQueue)
-          .then((msg) => {
-            console.log('Consuming:', msg)
+        let queueName = _self.QN_PLUGIN_ID
+        _self.queues[queueName].consume(processTask)
+          .then((queueInfo) => {
+            // console.log('DeviceSync Consuming:', queueInfo)
             return done()
           }).catch((err) => {
             done(err)
@@ -119,13 +125,14 @@ class DeviceSync extends EventEmitter {
 
     // plugin initialized
     ], (err) => {
-      if (err) return console.error(err)
+      if (err) return console.error('DeviceSync:', err)
       _self.emit('ready')
     })
   }
 
   syncDevice (deviceInfo) {
-    let genericDevicesQueue = this.queues[this.QN_GENERIC_DEVICES]
+    let queueName = this.QN_AGENT_DEVICES
+    let queue = this.queues[queueName]
 
     return new Promise((resolve, reject) => {
       if (isEmpty(deviceInfo)) return reject(new Error('Kindly specify the device details'))
@@ -137,7 +144,7 @@ class DeviceSync extends EventEmitter {
         data: deviceInfo
       })
 
-      genericDevicesQueue.publish(message)
+      queue.publish(message)
         .then(() => {
           resolve()
         }).catch((err) => {
@@ -147,7 +154,7 @@ class DeviceSync extends EventEmitter {
   }
 
   removeDevice (deviceId) {
-    let genericDevicesQueue = this.queues[this.QN_GENERIC_DEVICES]
+    let queue = this.queues[this.QN_AGENT_DEVICES]
 
     return new Promise((resolve, reject) => {
       if (!deviceId) return reject(new Error('Kindly specify the device identifier'))
@@ -157,7 +164,7 @@ class DeviceSync extends EventEmitter {
         data: {_id: deviceId}
       })
 
-      genericDevicesQueue.publish(message)
+      queue.publish(message)
         .then(() => {
           resolve()
         }).catch((err) => {
@@ -173,7 +180,7 @@ class DeviceSync extends EventEmitter {
       if (isEmpty(logData)) return reject(new Error('Kindly specify the data to log'))
 
       // loggers and custom loggers are in self.loggers array
-      async.each(self.loggers, (loggerId, callback) => {
+      async.each(self.qn.loggers, (loggerId, callback) => {
         if (isEmpty(loggerId)) return callback()
 
         // publish() has a built in stringify, so objects are safe to feed
@@ -203,7 +210,7 @@ class DeviceSync extends EventEmitter {
       })
 
       // exLoggers and custom exLoggers are in self.loggers array
-      async.each(self.exceptionLoggers, (loggerId, callback) => {
+      async.each(self.qn.exceptionLoggers, (loggerId, callback) => {
         if (isEmpty(loggerId)) return callback()
 
         self.queues[loggerId].publish(data)

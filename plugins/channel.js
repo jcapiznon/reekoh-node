@@ -1,1 +1,271 @@
 'use strict'
+
+const fs = require('fs')
+const path = require('path')
+const async = require('async')
+const Promise = require('bluebird')
+
+const isArray = require('lodash.isarray')
+const isEmpty = require('lodash.isempty')
+const isString = require('lodash.isstring')
+
+const Broker = require('../lib/broker.lib.js')
+const EventEmitter = require('events').EventEmitter
+
+class Channel extends EventEmitter {
+
+  constructor () {
+    super()
+
+    this.config = {}
+    this.queues = []
+
+    this.QN_AGENT_MESSAGES = 'agent.messages'
+    this.QN_INPUT_PIPE = process.env.INPUT_PIPE || 'demo.pipe.channel'
+    this.QN_PLUGIN_ID = process.env.PLUGIN_ID || 'demo.plugin.channel'
+
+    this.qn = {
+      loggers: ['agent.logs'],
+      exceptionLoggers: ['agent.exceptions'],
+      common: [
+        this.QN_INPUT_PIPE,
+        this.QN_AGENT_MESSAGES
+      ]
+    }
+
+    let _self = this
+    let _broker = new Broker()
+
+    let _config = process.env.CONFIG || '{}'
+    let _loggerIDs = process.env.LOGGERS || ''
+    let _exLoggerIDs = process.env.EXCEPTION_LOGGERS || ''
+    let _brokerConnStr = process.env.BROKER || 'amqp://guest:guest@127.0.0.1/'
+
+    // preparing logger queue names in array
+    _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.concat(_exLoggerIDs.split(','))
+    _self.qn.loggers = _self.qn.loggers.concat(_loggerIDs.split(','))
+
+    // removing empty elements
+    _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.filter(Boolean)
+    _self.qn.loggers = _self.qn.loggers.filter(Boolean)
+
+    _self.port = process.env.PORT || 8080
+
+    async.waterfall([
+      // connecting to rabbitMQ
+      (done) => {
+        _broker.connect(_brokerConnStr)
+          .then(() => {
+            // console.log('Connected to RabbitMQ Server.')
+            return done() || null // !
+          }).catch((err) => {
+            done(err)
+          })
+      },
+
+      // parse config trap error
+      (done) => {
+        async.waterfall([
+          async.constant(_config.toString('utf8')),
+          async.asyncify(JSON.parse)
+        ], (err, parsed) => {
+          _self.config = parsed
+          done(err)
+        })
+      },
+
+      // prepare certs/keys needed by SDK plugin developer
+      (done) => {
+        let root = process.cwd()
+        let keysDir = path.join(root, 'keys')
+
+        let pathCa = path.join(keysDir, 'server-ca.pem')
+        let pathCrl = path.join(keysDir, 'server-crl.pem')
+        let pathKey = path.join(keysDir, 'server-key.pem')
+        let pathCert = path.join(keysDir, 'server-cert.pem')
+
+        if (!fs.existsSync(keysDir)) fs.mkdirSync(keysDir)
+
+        // helper. less code less debug
+        let writer = (content, filePath, callback) => {
+          if (isEmpty(content)) return callback(null, '')
+          fs.writeFile(filePath, content, (err) => { callback(err, filePath) })
+        }
+
+        async.series({
+          ca: (callback) => { writer(process.env.CA, pathCa, callback) },
+          crl: (callback) => { writer(process.env.CRL, pathCrl, callback) },
+          key: (callback) => { writer(process.env.KEY, pathKey, callback) },
+          cert: (callback) => { writer(process.env.CERT, pathCert, callback) }
+        }, (err, res) => {
+          Object.assign(_self, res)
+          done(err)
+        })
+      },
+
+      // setting up generic queues
+      (done) => {
+        let queueIDs = []
+        queueIDs = queueIDs.concat(_self.qn.common)
+        queueIDs = queueIDs.concat(_self.qn.loggers)
+        queueIDs = queueIDs.concat(_self.qn.exceptionLoggers)
+
+        async.each(queueIDs, (loggerId, callback) => {
+          if (isEmpty(loggerId)) return callback()
+
+          _broker.newQueue(loggerId)
+            .then((queue) => {
+              if (queue) _self.queues[loggerId] = queue
+              return callback() || null // !
+            }).catch((err) => {
+              console.error('Channel newQueue()', err)
+            })
+        }, (err) => {
+          done(err)
+        })
+      },
+
+      // settopic exchnage queue and consume
+      (done) => {
+        let queueName = _self.QN_PLUGIN_ID
+
+        let processTopicData = (msg) => {
+          if (!isEmpty(msg)) {
+            async.waterfall([
+              async.constant(msg.content.toString('utf8')),
+              async.asyncify(JSON.parse)
+            ], (err, parsed) => {
+              if (!err) return _self.emit('data', parsed)
+              console.error('Channel processQueue() rcvd data is not a JSON.', err)
+            })
+          }
+        }
+
+        _broker.newExchangeQueue(queueName)
+          .then((queue) => {
+            if (!queue) throw new Error('newExchangeQueue() fail')
+            _self.queues[queueName] = queue
+            return new Promise((resolve) => {
+              resolve(queue)
+            })
+          }).then((queue) => {
+            return queue.consume(processTopicData)
+          }).then(() => {
+            return done() || null // !
+          }).catch((err) => {
+            done(err)
+          })
+      },
+
+      // listen to input pipe, then relay to plugin queue
+      (done) => {
+        let pipe = _self.QN_INPUT_PIPE
+        let plugin = _self.QN_PLUGIN_ID
+
+        _self.queues[pipe].consume((msg) => {
+          _self.queues[plugin].publish(msg.content.toString('utf8'))
+        })
+          .then((msg) => {
+          // console.log('Channel Consuming:', msg)
+            return done()
+          }).catch((err) => {
+            done(err)
+          })
+      }
+
+      // plugin initialized
+    ], (err) => {
+      if (err) return console.error('Channel: ', err)
+      _self.emit('ready')
+    })
+  }
+
+  log (logData) {
+    let self = this
+
+    return new Promise((resolve, reject) => {
+      if (isEmpty(logData)) return reject(new Error('Kindly specify the data to log'))
+
+      // loggers and custom loggers are in self.loggers array
+      async.each(self.qn.loggers, (loggerId, callback) => {
+        if (isEmpty(loggerId)) return callback()
+
+        // publish() has a built in stringify, so objects are safe to feed
+        self.queues[loggerId].publish(logData)
+          .then(() => {
+            resolve()
+          }).catch((err) => {
+            reject(err)
+          })
+      }, (err) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+  }
+
+  logException (err) {
+    let self = this
+
+    return new Promise((resolve, reject) => {
+      if (!(err instanceof Error)) return reject(new Error('Kindly specify a valid error to log'))
+
+      let data = JSON.stringify({
+        name: err.name,
+        message: err.message,
+        stack: err.stack
+      })
+
+      // exLoggers and custom exLoggers are in self.loggers array
+      async.each(self.qn.exceptionLoggers, (loggerId, callback) => {
+        if (isEmpty(loggerId)) return callback()
+
+        self.queues[loggerId].publish(data)
+          .then(() => {
+            resolve()
+          }).catch((err) => {
+            reject(err)
+          })
+      }, (err) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+  }
+
+  relayMessage (message, deviceTypes, devices) {
+    let queueName = this.QN_AGENT_MESSAGES
+    let queue = this.queues[queueName]
+
+    return new Promise((resolve, reject) => {
+      if (!message) {
+        return reject(new Error('Kindly specify the command/message to send'))
+      }
+      if (isEmpty(devices) && isEmpty(deviceTypes)) {
+        return reject(new Error('Kindly specify the target device types or devices'))
+      }
+
+      if ((isString(devices) || isArray(devices)) &&
+        (isString(deviceTypes) || isArray(deviceTypes))) {
+        let data = JSON.stringify({
+          pipeline: process.env.PIPELINE,
+          message: message,
+          deviceTypes: deviceTypes,
+          devices: devices
+        })
+
+        queue.publish(data)
+          .then(() => {
+            resolve()
+          }).catch((err) => {
+            reject(err)
+          })
+      } else {
+        return reject(new Error("'devices' and 'deviceTypes' must be a string or an array."))
+      }
+    })
+  }
+
+}
+
+module.exports = Channel

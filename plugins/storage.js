@@ -1,130 +1,118 @@
 'use strict'
 
-let async = require('async')
-let hasProp = require('lodash.has')
-let isEmpty = require('lodash.isempty')
-// let isString = require('lodash.isstring')
+const async = require('async')
+const isEmpty = require('lodash.isempty')
 
-let Promise = require('bluebird')
-let Broker = require('../lib/broker.lib.js')
-let EventEmitter = require('events').EventEmitter
+const Broker = require('../lib/broker.lib.js')
+const EventEmitter = require('events').EventEmitter
 
 class Storage extends EventEmitter {
 
-  constructor (config) {
+  constructor () {
     super()
 
     this.config = {}
     this.queues = []
-    this.loggers = []
-    this.exceptionLoggers = []
 
-    this.QN_GENERIC_LOGS = 'generic.logs'
-    this.QN_GENERIC_DEVICES = 'generic.devices'
-    this.QN_GENERIC_EXCEPTIONS = 'generic.exceptions'
+    this.QN_INPUT_PIPE = process.env.INPUT_PIPE || 'demo.storage'
+
+    this.qn = {
+      loggers: ['agent.logs'],
+      exceptionLoggers: ['agent.exceptions'],
+      common: [
+        this.QN_INPUT_PIPE
+      ]
+    }
 
     let _self = this
     let _broker = new Broker()
+
+    let _config = process.env.CONFIG || '{}'
+    let _loggerIDs = process.env.LOGGERS || ''
+    let _exLoggerIDs = process.env.EXCEPTION_LOGGERS || ''
     let _brokerConnStr = process.env.BROKER || 'amqp://guest:guest@127.0.0.1/'
 
-    let _config = proces.env.CONFIG || {}
-    let _loggerIDs = process.env.LOGGERS || ''
-    let _exceptionLoggerIDs = process.env.EXCEPTION_LOGGERS || ''
-    let _pluginID = process.env.PLUGIN_ID || 'demo.dev-sync'
+    // preparing logger queue names in array
+    _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.concat(_exLoggerIDs.split(','))
+    _self.qn.loggers = _self.qn.loggers.concat(_loggerIDs.split(','))
 
-    //  preparing logger queue names in array
-    _self.loggers = _loggerIDs.split(',')
-    _self.exceptionLoggers = _exceptionLoggerIDs.split(',')
-    _self.exceptionLoggers.push(_self.QN_GENERIC_EXCEPTIONS)
-    _self.loggers.push(_self.QN_GENERIC_LOGS)
-
-
+    // removing empty elements
+    _self.qn.exceptionLoggers = _self.qn.exceptionLoggers.filter(Boolean)
+    _self.qn.loggers = _self.qn.loggers.filter(Boolean)
 
     async.waterfall([
 
-      // parse config asynchronously
+      // parse config trap error
       (done) => {
         async.waterfall([
           async.constant(_config.toString('utf8')),
           async.asyncify(JSON.parse)
-        ], (err, parsedConfig) => {
-          _self.config = parsedConfig
+        ], (err, parsed) => {
+          _self.config = parsed
           done(err)
         })
       },
 
       // connecting to rabbitMQ
       (done) => {
-        return _broker.connect(_brokerConnStr)
+        _broker.connect(_brokerConnStr)
           .then(() => {
-            console.log('Connected to RabbitMQ Server.')
+            // console.log('Connected to RabbitMQ Server.')
             return done() || null // !
           }).catch((err) => {
             done(err)
           })
       },
 
-      // setting up messaging queues
+      // setting up generic queues
       (done) => {
-        let queueIDs = [
-          _pluginID,
-          _self.QN_GENERIC_DEVICES
-        ]
-
-        queueIDs = queueIDs
-          .concat(_self.loggers)
-          .concat(_self.exceptionLoggers)
+        let queueIDs = []
+        queueIDs = queueIDs.concat(_self.qn.common)
+        queueIDs = queueIDs.concat(_self.qn.loggers)
+        queueIDs = queueIDs.concat(_self.qn.exceptionLoggers)
 
         async.each(queueIDs, (loggerId, callback) => {
           if (isEmpty(loggerId)) return callback()
 
           _broker.newQueue(loggerId)
             .then((queue) => {
-              _self.queues[loggerId] = queue
+              if (queue) _self.queues[loggerId] = queue
               return callback() || null // !
             }).catch((err) => {
-            console.error('newQueue:', err)
-          })
+              console.error('Storage newQueue()', err)
+            })
         }, (err) => {
-          if (err) return console.error(err)
-          return done()
+          done(err)
         })
       },
 
       // process/listen for queued items
       (done) => {
-        let processQueue = (msg) => {
+        let processTask = (msg) => {
           if (!isEmpty(msg)) {
             async.waterfall([
               async.constant(msg.content.toString('utf8')),
               async.asyncify(JSON.parse)
-            ], (err, task) => {
-              if (err) return console.error(err)
-              if (task.operation === 'sync') {
-                _self.emit('sync')
-              } else if (task.operation === 'adddevice') {
-                _self.emit('adddevice', task.device)
-              } else if (task.operation === 'updatedevice') {
-                _self.emit('updatedevice', task.device)
-              } else if (task.operation === 'removedevice') {
-                _self.emit('removedevice', task.device)
-              }
+            ], (err, parsed) => {
+              if (!err) return _self.emit('data', parsed)
+              console.error('Storage processQueue() rcvd data is not a JSON.', err)
             })
           }
         }
 
-        _self.queues[_pluginID].consume(processQueue)
+        let queueName = _self.QN_INPUT_PIPE
+        _self.queues[queueName].consume(processTask)
           .then((msg) => {
-            console.log('Consuming:', msg)
+            // console.log('Storage Consuming:', msg)
             return done()
           }).catch((err) => {
-          console.error(err)
-        })
+            done(err)
+          })
       }
 
       // plugin initialized
     ], (err) => {
-      if (err) return console.error(err)
+      if (err) return console.error('Storage: ', err)
       _self.emit('ready')
     })
   }
@@ -136,7 +124,7 @@ class Storage extends EventEmitter {
       if (isEmpty(logData)) return reject(new Error('Kindly specify the data to log'))
 
       // loggers and custom loggers are in self.loggers array
-      async.each(self.loggers, (loggerId, callback) => {
+      async.each(self.qn.loggers, (loggerId, callback) => {
         if (isEmpty(loggerId)) return callback()
 
         // publish() has a built in stringify, so objects are safe to feed
@@ -144,8 +132,8 @@ class Storage extends EventEmitter {
           .then(() => {
             resolve()
           }).catch((err) => {
-          reject(err)
-        })
+            reject(err)
+          })
       }, (err) => {
         if (err) return reject(err)
         resolve()
@@ -166,15 +154,15 @@ class Storage extends EventEmitter {
       })
 
       // exLoggers and custom exLoggers are in self.loggers array
-      async.each(self.exceptionLoggers, (loggerId, callback) => {
+      async.each(self.qn.exceptionLoggers, (loggerId, callback) => {
         if (isEmpty(loggerId)) return callback()
 
         self.queues[loggerId].publish(data)
           .then(() => {
             resolve()
           }).catch((err) => {
-          reject(err)
-        })
+            reject(err)
+          })
       }, (err) => {
         if (err) return reject(err)
         resolve()
