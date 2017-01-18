@@ -4,7 +4,7 @@
   "description": "Reekoh SDK",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "gulp test"
   },
   "repository": {
     "type": "git",
@@ -21,7 +21,16 @@
     "async": "^2.1.4",
     "bluebird": "^3.4.7",
     "lodash.isempty": "^4.4.0",
+    "lodash.isequal": "^4.5.0",
+    "lodash.isnil": "^4.0.0",
     "lodash.isplainobject": "^4.0.6",
-    "lodash.isstring": "^4.0.1"
+    "lodash.isstring": "^4.0.1",
+    "node-uuid": "^1.4.7"
+  },
+  "devDependencies": {
+    "gulp": "^3.9.1",
+    "gulp-mocha": "^3.0.1",
+    "gulp-nodemon": "^2.2.1",
+    "gulp-standard": "^8.0.3"
   }
 }
