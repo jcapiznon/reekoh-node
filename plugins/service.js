@@ -5,14 +5,21 @@ let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
 let Broker = require('../lib/broker.lib')
-let inputPipes = process.env.INPUT_PIPES.split(',')
-let outputPipes = process.env.OUTPUT_PIPES.split(',')
-let loggers = process.env.LOGGERS.split(',')
-let exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
+let inputPipes = []
+let outputPipes = []
+let loggers = []
+let exceptionLoggers = []
 
 class Service extends EventEmitter {
   constructor () {
     super()
+
+    // console.log(process.env.TEST_ERR)
+
+    inputPipes = process.env.INPUT_PIPES.split(',')
+    outputPipes = process.env.OUTPUT_PIPES.split(',')
+    loggers = process.env.LOGGERS.split(',')
+    exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
 
     let dataEmitter = (data) => {
       async.waterfall([

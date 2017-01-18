@@ -33,7 +33,6 @@
     "gulp": "^3.9.1",
     "gulp-mocha": "^3.0.1",
     "gulp-nodemon": "^2.2.1",
-    "gulp-standard": "^8.0.3",
-    "should": "^11.1.2"
+    "gulp-standard": "^8.0.3"
   }
 }
