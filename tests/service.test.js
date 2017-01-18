@@ -2,28 +2,26 @@
 
 'use strict'
 
-const async = require('async')
 const amqp = require('amqplib')
 const Reekoh = require('../app.js')
 const isEqual = require('lodash.isequal')
-const Broker = require('../lib/broker.lib.js')
 
 describe('Service Plugin Test', () => {
-  let _broker = new Broker()
-  let _plugin = new Reekoh.plugins.Service()
+  let _plugin = null
   let _channel = null
   let _conn = null
 
   let errLog = (err) => { console.log(err) }
 
   before('#test init', () => {
-    //  ENVIRONMENT VARIABLES
-    process.env.INPUT_PIPES = 'Ip1,Ip2'
-    process.env.OUTPUT_PIPES= 'Op1,Op2'
+    process.env.PLUGIN_ID = 'plugin1'
+    process.env.PIPELINE = 'Pl1'
+    process.env.OUTPUT_PIPES = 'Op1,Op2'
     process.env.LOGGERS = 'logger1,logger2'
     process.env.EXCEPTION_LOGGERS = 'exlogger1,exlogger2'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
     process.env.CONFIG = '{"foo": "bar"}'
+    process.env.INPUT_PIPES = 'sip1,sip2'
     process.env.OUTPUT_SCHEME = 'MERGE'
     process.env.OUTPUT_NAMESPACE = 'result'
 
@@ -32,16 +30,21 @@ describe('Service Plugin Test', () => {
         _conn = conn
         return conn.createChannel()
       }).then((channel) => {
-      _channel = channel
-    }).catch(errLog)
+        _channel = channel
+      }).catch(errLog)
   })
 
-  after('#terminate connection', () => {
+  after('#terminate connection', (done) => {
     _conn.close()
+      .then(() => {
+        _plugin.removeAllListeners()
+        done()
+      })
   })
 
   describe('#spawn', () => {
-    it('should spawn the class without error', (done) => {
+    it('should spawn the class without error', function (done) {
+      _plugin = new Reekoh.plugins.Service()
       _plugin.once('ready', () => {
         console.log(_plugin.config)
         done()
@@ -52,7 +55,7 @@ describe('Service Plugin Test', () => {
   describe('#events', () => {
     it('should receive `data` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue('Ip1', new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue('sip1', new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('data', (data) => {
         if (!isEqual(data, dummyData)) {
@@ -70,12 +73,12 @@ describe('Service Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-        if (!isEqual(err, new Error('Please specify the original data and the result.'))) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(err, new Error('Please specify the original data and the result.'))) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
   })
 
@@ -85,8 +88,8 @@ describe('Service Plugin Test', () => {
         .then(() => {
           done()
         }).catch(() => {
-        done(new Error('send using logger fail.'))
-      })
+          done(new Error('send using logger fail.'))
+        })
     })
 
     it('should send an exception log to exception logger queues', (done) => {
@@ -94,8 +97,8 @@ describe('Service Plugin Test', () => {
         .then(() => {
           done()
         }).catch(() => {
-        done(new Error('send using exception logger fail.'))
-      })
+          done(new Error('send using exception logger fail.'))
+        })
     })
   })
 })
