@@ -10,14 +10,13 @@ const Broker = require('../lib/broker.lib.js')
 
 describe('Stream Plugin Test', () => {
   let _broker = new Broker()
-  let _plugin = new Reekoh.plugins.Stream()
+  let _plugin = null
   let _channel = null
   let _conn = null
 
   let errLog = (err) => { console.log(err) }
 
   before('#test init', () => {
-    //  ENVIRONMENT VARIABLES
     process.env.PLUGIN_ID = 'plugin1'
     process.env.PIPELINE = 'Pl1'
     process.env.OUTPUT_PIPES = 'Op1,Op2'
@@ -25,22 +24,30 @@ describe('Stream Plugin Test', () => {
     process.env.EXCEPTION_LOGGERS = 'exlogger1,exlogger2'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
     process.env.CONFIG = '{"foo": "bar"}'
+    process.env.INPUT_PIPES = 'stip1,stip2'
+    process.env.OUTPUT_SCHEME = 'MERGE'
+    process.env.OUTPUT_NAMESPACE = 'result'
 
     amqp.connect(process.env.BROKER)
       .then((conn) => {
         _conn = conn
         return conn.createChannel()
       }).then((channel) => {
-      _channel = channel
-    }).catch(errLog)
+        _channel = channel
+      }).catch(errLog)
   })
 
-  after('#terminate connection', () => {
+  after('#terminate connection', (done) => {
     _conn.close()
+      .then(() => {
+        _plugin.removeAllListeners()
+        done()
+      })
   })
 
   describe('#spawn', () => {
     it('should spawn the class without error', (done) => {
+      _plugin = new Reekoh.plugins.Stream()
       _plugin.once('ready', () => {
         done()
       })
@@ -63,18 +70,16 @@ describe('Stream Plugin Test', () => {
   })
 
   describe('#RPC', () => {
-
     it('should connect to broker', (done) => {
       _broker.connect(process.env.BROKER)
         .then(() => {
           return done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
 
     it('should spawn temporary RPC server', (done) => {
-
       // if request arrives this proc will be called
       let sampleServerProcedure = (msg) => {
         return new Promise((resolve, reject) => {
@@ -94,26 +99,25 @@ describe('Stream Plugin Test', () => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
         // Awaiting RPC requests
-        done()
-      }).catch((err) => {
-        done(err)
-      })
+          done()
+        }).catch((err) => {
+          done(err)
+        })
     })
   })
 
   describe('.requestDeviceInfo()', () => {
-
     it('should throw error if deviceId is empty', (done) => {
       _plugin.requestDeviceInfo('')
         .then(() => {
           // noop!
         }).catch((err) => {
-        if (!isEqual(err, new Error('Please specify the device identifier.'))) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(err, new Error('Please specify the device identifier.'))) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
 
     it('should request device info', (done) => {
@@ -122,8 +126,8 @@ describe('Stream Plugin Test', () => {
           console.log(reply)
           done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
   })
 
@@ -133,12 +137,12 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-        if (!isEqual(err, new Error('Invalid data received. Data should be and Object and not empty.'))) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(err, new Error('Invalid data received. Data should be and Object and not empty.'))) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
 
     it('should publish data to output pipes', (done) => {
@@ -146,8 +150,8 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
 
     it('should publish data to sanitizer', (done) => {
@@ -155,8 +159,8 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
   })
 
@@ -166,12 +170,12 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-        if (!isEqual(new Error('Please specify the device identifier.'), err)) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(new Error('Please specify the device identifier.'), err)) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
 
     it('should publish a message to device', (done) => {
@@ -179,8 +183,8 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
   })
 
@@ -190,12 +194,12 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-        if (!isEqual(new Error('Please specify the device identifier.'), err)) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(new Error('Please specify the device identifier.'), err)) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
 
     it('should publish a message to device', (done) => {
@@ -203,8 +207,8 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
   })
 
@@ -214,12 +218,12 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-        if (!isEqual(new Error('Please specify the device identifier.'), err)) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(new Error('Please specify the device identifier.'), err)) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
 
     it('should throw error if state is empty', (done) => {
@@ -227,20 +231,20 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-        if (!isEqual(err, new Error('Please specify the device state.'))) {
-          done(new Error('Return value did not match.'))
-        } else {
-          done()
-        }
-      })
+          if (!isEqual(err, new Error('Please specify the device state.'))) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
     })
     it('should publish state msg to queue', (done) => {
       _plugin.setDeviceState('foo', 'bar')
         .then(() => {
           done()
         }).catch((err) => {
-        done(err)
-      })
+          done(err)
+        })
     })
   })
 
@@ -250,8 +254,8 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done()
         }).catch(() => {
-        done(new Error('send using logger fail.'))
-      })
+          done(new Error('send using logger fail.'))
+        })
     })
 
     it('should send an exception log to exception logger queues', (done) => {
@@ -259,8 +263,8 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done()
         }).catch(() => {
-        done(new Error('send using exception logger fail.'))
-      })
+          done(new Error('send using exception logger fail.'))
+        })
     })
   })
 })

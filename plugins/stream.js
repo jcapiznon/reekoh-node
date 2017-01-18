@@ -59,9 +59,9 @@ class Stream extends EventEmitter {
             done(error)
           })
       },
-      (done) =>{
+      (done) => {
         // initialise RPC
-        broker.newRpc('client','agent.deviceinfo')
+        broker.newRpc('client', 'agent.deviceinfo')
           .then((queue) => {
             this.queues['agent.deviceinfo'] = queue
             console.log('RPC initialised')
@@ -117,7 +117,7 @@ class Stream extends EventEmitter {
     return new Promise((resolve, reject) => {
       if (isEmpty(data) || !isPlainObject(data)) return reject(new Error('Invalid data received. Data should be and Object and not empty.'))
 
-      if(isEmpty(sequenceId)){
+      if (isEmpty(sequenceId)) {
         async.each(outputPipes, (outputPipe, done) => {
           this.queues[outputPipe].publish(data)
             .then(() => {
@@ -132,8 +132,7 @@ class Stream extends EventEmitter {
 
           resolve()
         })
-      }
-      else{
+      } else {
         this.queues['agent.data'].publish(JSON.stringify({
           plugin: process.env.PLUGIN_ID,
           pipe: process.env.OUTPUT_PIPES,
@@ -153,7 +152,7 @@ class Stream extends EventEmitter {
 
   notifyConnection (deviceId) {
     return new Promise((resolve, reject) => {
-      if(isEmpty(deviceId)) return reject(new Error('Please specify the device identifier.'))
+      if (isEmpty(deviceId)) return reject(new Error('Please specify the device identifier.'))
 
       this.queues['agent.devices'].publish(JSON.stringify({
         operation: 'connect',
@@ -173,7 +172,7 @@ class Stream extends EventEmitter {
 
   notifyDisconnection (deviceId) {
     return new Promise((resolve, reject) => {
-      if(isEmpty(deviceId)) return reject(new Error('Please specify the device identifier.'))
+      if (isEmpty(deviceId)) return reject(new Error('Please specify the device identifier.'))
 
       this.queues['agent.devices'].publish(JSON.stringify({
         operation: 'disconnect',
@@ -214,7 +213,7 @@ class Stream extends EventEmitter {
     })
   }
 
-  requestDeviceInfo(deviceId) {
+  requestDeviceInfo (deviceId) {
     return new Promise((resolve, reject) => {
       if (isEmpty(deviceId)) return reject(new Error('Please specify the device identifier.'))
 

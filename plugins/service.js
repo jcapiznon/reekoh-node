@@ -14,8 +14,6 @@ class Service extends EventEmitter {
   constructor () {
     super()
 
-    // console.log(process.env.TEST_ERR)
-
     inputPipes = process.env.INPUT_PIPES.split(',')
     outputPipes = process.env.OUTPUT_PIPES.split(',')
     loggers = process.env.LOGGERS.split(',')
