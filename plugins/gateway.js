@@ -171,8 +171,8 @@ class Gateway extends EventEmitter {
             if (queue) _self.queues[queueName] = queue
             return done() || null
           }).catch((err) => {
-          done(err)
-        })
+            done(err)
+          })
       }
 
       // plugin initialized
