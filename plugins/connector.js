@@ -5,7 +5,7 @@ let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
 let Broker = require('../lib/broker.lib')
-let inputPipes = []
+let inputPipe = []
 let loggers = []
 let exceptionLoggers = []
 
@@ -13,7 +13,7 @@ class Connector extends EventEmitter {
   constructor () {
     super()
 
-    inputPipes = process.env.INPUT_PIPES.split(',')
+    inputPipe = process.env.INPUT_PIPE
     loggers = process.env.LOGGERS.split(',')
     exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
 
@@ -57,7 +57,7 @@ class Connector extends EventEmitter {
           })
       },
       (done) => {
-        let queueIds = inputPipes
+        let queueIds = [inputPipe]
           .concat(loggers)
           .concat(exceptionLoggers)
 
@@ -76,21 +76,17 @@ class Connector extends EventEmitter {
         })
       },
       (done) => {
-        // consume input pipes
-        async.each(inputPipes, (inputPipe, callback) => {
-          this.queues[inputPipe].consume((msg) => {
-            dataEmitter(msg)
-          })
-            .then(() => {
-              callback()
-            })
-            .catch((error) => {
-              callback(error)
-            })
-        }, (error) => {
-          if (!error) console.log('Input pipes consumed.')
-          done(error)
+        // consume input pipe
+        this.queues[inputPipe].consume((msg) => {
+          dataEmitter(msg)
         })
+          .then(() => {
+            console.log('Input pipe consumed.')
+            done()
+          })
+          .catch((error) => {
+            done(error)
+          })
       }
     ], (error) => {
       if (error) return console.error(error)

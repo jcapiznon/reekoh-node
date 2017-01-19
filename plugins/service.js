@@ -5,7 +5,7 @@ let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
 let Broker = require('../lib/broker.lib')
-let inputPipes = []
+let inputPipe = []
 let outputPipes = []
 let loggers = []
 let exceptionLoggers = []
@@ -14,7 +14,7 @@ class Service extends EventEmitter {
   constructor () {
     super()
 
-    inputPipes = process.env.INPUT_PIPES.split(',')
+    inputPipe = process.env.INPUT_PIPE
     outputPipes = process.env.OUTPUT_PIPES.split(',')
     loggers = process.env.LOGGERS.split(',')
     exceptionLoggers = process.env.EXCEPTION_LOGGERS.split(',')
@@ -59,7 +59,7 @@ class Service extends EventEmitter {
           })
       },
       (done) => {
-        let queueIds = inputPipes
+        let queueIds = [inputPipe]
           .concat(outputPipes)
           .concat(loggers)
           .concat(exceptionLoggers)
@@ -79,21 +79,17 @@ class Service extends EventEmitter {
         })
       },
       (done) => {
-        // consume input pipes
-        async.each(inputPipes, (inputPipe, callback) => {
-          this.queues[inputPipe].consume((msg) => {
-            dataEmitter(msg)
-          })
-            .then(() => {
-              callback()
-            })
-            .catch((error) => {
-              callback(error)
-            })
-        }, (error) => {
-          if (!error) console.log('Input pipes consumed.')
-          done(error)
+        // consume input pipe
+        this.queues[inputPipe].consume((msg) => {
+          dataEmitter(msg)
         })
+          .then(() => {
+            console.log('Input pipes consumed.')
+            done()
+          })
+          .catch((error) => {
+            done(error)
+          })
       }
     ], (error) => {
       if (error) return console.error(error)
