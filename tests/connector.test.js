@@ -21,7 +21,7 @@ describe('Connector Plugin Test', () => {
     process.env.EXCEPTION_LOGGERS = 'exlogger1,exlogger2'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
     process.env.CONFIG = '{"foo": "bar"}'
-    process.env.INPUT_PIPES = 'cip1,cip2'
+    process.env.INPUT_PIPE = 'cip1'
     process.env.OUTPUT_SCHEME = 'MERGE'
     process.env.OUTPUT_NAMESPACE = 'result'
 
