@@ -5,11 +5,12 @@ let EventEmitter = require('events').EventEmitter
 let async = require('async')
 let isEmpty = require('lodash.isempty')
 let Broker = require('../lib/broker.lib')
-let inputPipes = process.env.INPUT_PIPES.split(',')
+let inputPipe = null
 
 class ExceptionLogger extends EventEmitter {
   constructor () {
     super()
+    inputPipe = process.env.INPUT_PIPE
 
     let dataEmitter = (msg) => {
       async.waterfall([
@@ -20,6 +21,7 @@ class ExceptionLogger extends EventEmitter {
         this.emit('exception', parsed)
       })
     }
+
     this.queues = []
     this._broker = new Broker()
     let broker = this._broker
@@ -35,7 +37,7 @@ class ExceptionLogger extends EventEmitter {
         })
       },
       (done) => {
-        // connect to rabbitmq  1.
+        // connect to rabbitmq
         broker.connect(process.env.BROKER)
           .then(() => {
             console.log('Connected to RabbitMQ Server.')
@@ -46,12 +48,7 @@ class ExceptionLogger extends EventEmitter {
           })
       },
       (done) => {
-        let queueIds = inputPipes
-          .concat('agent.logs')
-          .concat('agent.exceptions')
-
-        console.log(queueIds)
-
+        let queueIds = [ inputPipe, 'agent.logs', 'agent.exceptions' ]
         async.each(queueIds, (queueID, callback) => {
           broker.newQueue(queueID)
             .then((queue) => {
@@ -67,34 +64,27 @@ class ExceptionLogger extends EventEmitter {
         })
       },
       (done) => {
-        // consume input pipes
-        async.each(inputPipes, (inputPipe, callback) => {
-          this.queues[inputPipe].consume((msg) => {
-            dataEmitter(msg)
-          })
-            .then(() => {
-              callback()
-            })
-            .catch((error) => {
-              console.log(error)
-              callback(error)
-            })
-        }, (error) => {
-          if (!error) console.log('Input pipes consumed.')
-          done(error)
+        this.queues[inputPipe].consume((msg) => {
+          console.log(inputPipe)
+          dataEmitter(msg)
         })
+          .then(() => {
+            done()
+          })
+          .catch((error) => {
+            done(error)
+          })
       }
     ], (error) => {
       if (error) return console.error(error)
-
       console.log('Plugin init process done.')
       this.emit('ready')
     })
   }
+
   log (logData) {
     return new Promise((resolve, reject) => {
       if (isEmpty(logData)) return reject(new Error(`Please specify a data to log.`))
-
       this.queues['agent.logs'].publish(logData)
         .then(() => {
           console.log('message written to agent.logs')
@@ -113,12 +103,13 @@ class ExceptionLogger extends EventEmitter {
     }
 
     return new Promise((resolve, reject) => {
+      if (!(err instanceof Error)) return reject(new Error(`Please specify a data to log.`))
       this.queues['agent.exceptions'].publish(errData)
         .then(() => {
-          console.log('message written to agent.exceptions')
+          resolve()
         })
         .catch((error) => {
-          console.error(error)
+          reject(error)
         })
     })
   }
