@@ -26,7 +26,6 @@ const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
 const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
 
 describe('Gateway Plugin Test', () => {
-
   before('#test init', () => {
     process.env.LOGGERS = ''
     process.env.EXCEPTION_LOGGERS = ''
