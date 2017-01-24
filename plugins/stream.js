@@ -109,7 +109,7 @@ class Stream extends EventEmitter {
           ], (err, parsed) => {
             if (err) return console.error(err)
 
-            this.emit('sync', parsed)
+            this.emit('sync')
           })
         })
 

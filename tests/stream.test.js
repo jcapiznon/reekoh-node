@@ -71,12 +71,8 @@ describe('Stream Plugin Test', () => {
       let dummyData = { 'foo': 'bar' }
       _channel.sendToQueue(process.env.PLUGIN_ID, new Buffer(JSON.stringify(dummyData)))
 
-      _plugin.on('sync', (data) => {
-        if (!isEqual(data, dummyData)) {
-          done(new Error('received data not matched'))
-        } else {
-          done()
-        }
+      _plugin.on('sync', () => {
+        done()
       })
     })
   })
