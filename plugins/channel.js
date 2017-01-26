@@ -21,8 +21,8 @@ class Channel extends EventEmitter {
     this.queues = []
 
     this.QN_AGENT_MESSAGES = 'agent.messages'
-    this.QN_INPUT_PIPE = process.env.INPUT_PIPE
-    this.QN_PLUGIN_ID = process.env.PLUGIN_ID
+    this.QN_PLUGIN_ID = process.env.PLUGIN_ID || 'demo.channel'
+    this.QN_INPUT_PIPE = process.env.INPUT_PIPE || 'demo.channel.pipe'
 
     this.qn = {
       common: [
@@ -156,7 +156,7 @@ class Channel extends EventEmitter {
 
         pipeQueue.consume((msg) => { pluginQueue.publish(msg.content.toString('utf8')) })
           .then((msg) => {
-            return done()
+            return done() || null
           }).catch((err) => {
             done(err)
           })
