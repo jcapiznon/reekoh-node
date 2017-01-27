@@ -103,7 +103,7 @@ class Storage extends EventEmitter {
         let queueName = _self.QN_INPUT_PIPE
         _self.queues[queueName].consume(processTask)
           .then((msg) => {
-            return done()
+            return done() || null
           }).catch((err) => {
             done(err)
           })

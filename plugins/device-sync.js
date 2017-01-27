@@ -118,7 +118,7 @@ class DeviceSync extends EventEmitter {
         _self.queues[queueName].consume(processTask)
           .then((queueInfo) => {
             // console.log('DeviceSync Consuming:', queueInfo)
-            return done()
+            return done() || null
           }).catch((err) => {
             done(err)
           })
