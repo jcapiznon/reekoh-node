@@ -9,9 +9,9 @@ let _channel = null
 
 const async = require('async')
 const amqp = require('amqplib')
-const reekoh = require('../app.js')
+const reekoh = require('../../index.js')
 const isEqual = require('lodash.isequal')
-const Broker = require('../lib/broker.lib.js')
+const Broker = require('../../lib/broker.lib')
 
 const QN_AGENT_DEVICE_INFO = 'agent.deviceinfo'
 const ERR_RETURN_UNMATCH = 'Returned value not matched.'
