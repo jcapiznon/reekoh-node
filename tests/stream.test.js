@@ -66,6 +66,15 @@ describe('Stream Plugin Test', () => {
         }
       })
     })
+
+    it('should receive `sync` event', (done) => {
+      let dummyData = { 'foo': 'bar' }
+      _channel.sendToQueue(process.env.PLUGIN_ID, new Buffer(JSON.stringify(dummyData)))
+
+      _plugin.on('sync', () => {
+        done()
+      })
+    })
   })
 
   describe('#RPC', () => {
