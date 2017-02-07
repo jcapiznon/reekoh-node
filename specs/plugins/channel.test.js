@@ -1,5 +1,3 @@
-/* global describe, it, before, after */
-
 'use strict'
 
 let _conn = null
@@ -7,7 +5,7 @@ let _plugin = null
 let _channel = null
 
 const amqp = require('amqplib')
-const reekoh = require('../app.js')
+const reekoh = require('../../index.js')
 const isEqual = require('lodash.isequal')
 
 const ERR_RETURN_UNMATCH = 'Returned value not matched.'

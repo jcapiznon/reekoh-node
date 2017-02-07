@@ -1,12 +1,10 @@
-/* global describe, it */
-
 'use strict'
 
 const async = require('async')
 const amqp = require('amqplib')
-const Reekoh = require('../app.js')
+const Reekoh = require('../../index.js')
 const isEqual = require('lodash.isequal')
-const Broker = require('../lib/broker.lib.js')
+const Broker = require('../../lib/broker.lib')
 
 describe('Stream Plugin Test', () => {
   let _broker = new Broker()
@@ -64,6 +62,15 @@ describe('Stream Plugin Test', () => {
         } else {
           done()
         }
+      })
+    })
+
+    it('should receive `sync` event', (done) => {
+      let dummyData = { 'foo': 'bar' }
+      _channel.sendToQueue(process.env.PLUGIN_ID, new Buffer(JSON.stringify(dummyData)))
+
+      _plugin.on('sync', () => {
+        done()
       })
     })
   })
