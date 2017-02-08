@@ -3,10 +3,10 @@
 'use strict'
 
 const amqp = require('amqplib')
-const Reekoh = require('../app.js')
+const Reekoh = require('../../index.js')
 const isEqual = require('lodash.isequal')
 
-describe('Service Plugin Test', () => {
+describe('Connector Plugin Test', () => {
   let _plugin = null
   let _channel = null
   let _conn = null
@@ -21,7 +21,7 @@ describe('Service Plugin Test', () => {
     process.env.EXCEPTION_LOGGERS = 'exlogger1,exlogger2'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
     process.env.CONFIG = '{"foo": "bar"}'
-    process.env.INPUT_PIPE = 'sip1'
+    process.env.INPUT_PIPE = 'cip1'
     process.env.OUTPUT_SCHEME = 'MERGE'
     process.env.OUTPUT_NAMESPACE = 'result'
 
@@ -43,8 +43,8 @@ describe('Service Plugin Test', () => {
   })
 
   describe('#spawn', () => {
-    it('should spawn the class without error', function (done) {
-      _plugin = new Reekoh.plugins.Service()
+    it('should spawn the class without error', (done) => {
+      _plugin = new Reekoh.plugins.Connector()
       _plugin.once('ready', () => {
         console.log(_plugin.config)
         done()
@@ -55,7 +55,7 @@ describe('Service Plugin Test', () => {
   describe('#events', () => {
     it('should receive `data` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue('sip1', new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue('cip1', new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('data', (data) => {
         if (!isEqual(data, dummyData)) {
@@ -64,21 +64,6 @@ describe('Service Plugin Test', () => {
           done()
         }
       })
-    })
-  })
-
-  describe('#pipe', () => {
-    it('should throw error if data is empty', (done) => {
-      _plugin.pipe('', '')
-        .then(() => {
-          done(new Error('Reject expected.'))
-        }).catch((err) => {
-          if (!isEqual(err, new Error('Please specify the original data and the result.'))) {
-            done(new Error('Return value did not match.'))
-          } else {
-            done()
-          }
-        })
     })
   })
 

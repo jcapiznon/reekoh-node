@@ -1,7 +1,7 @@
 'use strict'
 
 let amqp = require('amqplib')
-let Reekoh = require('../app.js')
+let Reekoh = require('../../index.js')
 let isEqual = require('lodash.isequal')
 let _conn = null
 let _plugin = null

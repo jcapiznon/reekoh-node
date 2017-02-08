@@ -7,7 +7,7 @@ let _plugin = null
 let _channel = null
 
 const amqp = require('amqplib')
-const reekoh = require('../app.js')
+const reekoh = require('../../index.js')
 const isEmpty = require('lodash.isempty')
 const isEqual = require('lodash.isequal')
 
