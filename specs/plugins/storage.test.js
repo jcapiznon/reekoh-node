@@ -7,7 +7,7 @@ let _plugin = null
 let _channel = null
 
 let amqp = require('amqplib')
-let reekoh = require('../app.js')
+let reekoh = require('../../index.js')
 let isEqual = require('lodash.isequal')
 
 const ERR_RETURN_UNMATCH = 'Returned value not matched.'

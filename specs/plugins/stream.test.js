@@ -1,12 +1,10 @@
-/* global describe, it */
-
 'use strict'
 
 const async = require('async')
 const amqp = require('amqplib')
-const Reekoh = require('../app.js')
+const Reekoh = require('../../index.js')
 const isEqual = require('lodash.isequal')
-const Broker = require('../lib/broker.lib.js')
+const Broker = require('../../lib/broker.lib')
 
 describe('Stream Plugin Test', () => {
   let _broker = new Broker()

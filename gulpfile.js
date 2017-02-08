@@ -7,7 +7,7 @@ let standard = require('gulp-standard')
 
 let paths = {
   js: ['*.js', '*/*.js', '*/**/*.js', '!node_modules/**'],
-  tests: ['tests/*.test.js']
+  tests: ['specs/*.test.js', 'specs/**/*.test.js']
 }
 
 gulp.task('standard', function () {
