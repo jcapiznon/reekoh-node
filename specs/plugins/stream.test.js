@@ -90,14 +90,7 @@ describe('Stream Plugin Test', () => {
       // if request arrives this proc will be called
       let sampleServerProcedure = (msg) => {
         return new Promise((resolve, reject) => {
-          async.waterfall([
-            async.constant(msg.content.toString('utf8')),
-            async.asyncify(JSON.parse)
-          ], (err, parsed) => {
-            if (err) return reject(err)
-            parsed.foo = 'bar'
-            resolve(JSON.stringify(parsed))
-          })
+          resolve(JSON.stringify(msg.content))
         })
       }
 
