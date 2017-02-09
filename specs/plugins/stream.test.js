@@ -24,6 +24,7 @@ describe('Stream Plugin Test', () => {
     process.env.CONFIG = '{"foo": "bar"}'
     process.env.OUTPUT_SCHEME = 'MERGE'
     process.env.OUTPUT_NAMESPACE = 'result'
+    process.env.ACCOUNT = 'demo account'
 
     amqp.connect(process.env.BROKER)
       .then((conn) => {
@@ -100,7 +101,7 @@ describe('Stream Plugin Test', () => {
         })
       }
 
-      _broker.newRpc('server', 'agent.deviceinfo')
+      _broker.newRpc('server', 'deviceinfo')
         .then((queue) => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
@@ -112,7 +113,8 @@ describe('Stream Plugin Test', () => {
     })
   })
 
-  describe('.requestDeviceInfo()', () => {
+  describe('.requestDeviceInfo()', function () {
+    this.timeout(8000)
     it('should throw error if deviceId is empty', (done) => {
       _plugin.requestDeviceInfo('')
         .then(() => {
