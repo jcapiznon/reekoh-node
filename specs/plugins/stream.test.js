@@ -24,6 +24,7 @@ describe('Stream Plugin Test', () => {
     process.env.CONFIG = '{"foo": "bar"}'
     process.env.OUTPUT_SCHEME = 'MERGE'
     process.env.OUTPUT_NAMESPACE = 'result'
+    process.env.ACCOUNT = 'demo account'
 
     amqp.connect(process.env.BROKER)
       .then((conn) => {
@@ -89,18 +90,11 @@ describe('Stream Plugin Test', () => {
       // if request arrives this proc will be called
       let sampleServerProcedure = (msg) => {
         return new Promise((resolve, reject) => {
-          async.waterfall([
-            async.constant(msg.content.toString('utf8')),
-            async.asyncify(JSON.parse)
-          ], (err, parsed) => {
-            if (err) return reject(err)
-            parsed.foo = 'bar'
-            resolve(JSON.stringify(parsed))
-          })
+          resolve(JSON.stringify(msg.content))
         })
       }
 
-      _broker.newRpc('server', 'agent.deviceinfo')
+      _broker.newRpc('server', 'deviceinfo')
         .then((queue) => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
@@ -112,7 +106,8 @@ describe('Stream Plugin Test', () => {
     })
   })
 
-  describe('.requestDeviceInfo()', () => {
+  describe('.requestDeviceInfo()', function () {
+    this.timeout(8000)
     it('should throw error if deviceId is empty', (done) => {
       _plugin.requestDeviceInfo('')
         .then(() => {
