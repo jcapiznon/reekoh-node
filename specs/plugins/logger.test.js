@@ -14,6 +14,7 @@ describe('Logger Plugin Test', () => {
     process.env.INPUT_PIPE = 'lip.1'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
     process.env.CONFIG = '{"foo":"bar"}'
+    process.env.ACCOUNT = 'demo account'
 
     amqp.connect(process.env.BROKER)
       .then((conn) => {
