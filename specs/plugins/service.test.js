@@ -24,6 +24,7 @@ describe('Service Plugin Test', () => {
     process.env.INPUT_PIPE = 'sip1'
     process.env.OUTPUT_SCHEME = 'MERGE'
     process.env.OUTPUT_NAMESPACE = 'result'
+    process.env.ACCOUNT = 'demo account'
 
     amqp.connect(process.env.BROKER)
       .then((conn) => {
