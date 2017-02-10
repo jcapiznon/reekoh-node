@@ -102,7 +102,7 @@ describe('Gateway Plugin Test', () => {
         })
       }
 
-      _broker.newRpc('server', QN_DEVICE_INFO)
+      _broker.createRPC('server', QN_DEVICE_INFO)
         .then((queue) => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
