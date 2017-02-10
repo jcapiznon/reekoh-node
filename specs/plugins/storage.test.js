@@ -10,16 +10,15 @@ let amqp = require('amqplib')
 let reekoh = require('../../index.js')
 let isEqual = require('lodash.isequal')
 
-const ERR_RETURN_UNMATCH = 'Returned value not matched.'
-const ERR_EMPTY_LOG_DATA = 'Kindly specify the data to log'
-const ERR_EXPECT_REJECTION = 'Expecting rejection. Check your test data.'
-const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log'
+// preserving.. plugin clears env after init
+const ENV_INPUT_PIPE = 'demo.storage'
 
 describe('Storage Plugin Test', () => {
   before('#test init', () => {
+
     process.env.LOGGERS = ''
     process.env.EXCEPTION_LOGGERS = ''
-    process.env.INPUT_PIPE = 'demo.storage'
+    process.env.INPUT_PIPE = ENV_INPUT_PIPE
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
 
     amqp.connect(process.env.BROKER)
@@ -57,11 +56,11 @@ describe('Storage Plugin Test', () => {
 
     it('should rcv `data` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue(process.env.INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue(ENV_INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('data', (data) => {
         if (!isEqual(dummyData, data)) {
-          done(new Error(ERR_RETURN_UNMATCH))
+          done(new Error('Returned value not matched.'))
         } else {
           done()
         }
@@ -74,10 +73,10 @@ describe('Storage Plugin Test', () => {
       it('should throw error if logData is empty', (done) => {
         _plugin.log('')
           .then(() => {
-            done(new Error(ERR_EXPECT_REJECTION))
+            done(new Error('Expecting rejection. Check your test data.'))
           }).catch((err) => {
-            if (!isEqual(err.message, ERR_EMPTY_LOG_DATA)) {
-              done(new Error(ERR_RETURN_UNMATCH))
+            if (!isEqual(err.message, 'Kindly specify the data to log')) {
+              done(new Error('Returned value not matched.'))
             } else {
               done()
             }
@@ -98,10 +97,10 @@ describe('Storage Plugin Test', () => {
       it('should throw error if param is not an Error instance', (done) => {
         _plugin.logException('')
           .then(() => {
-            done(new Error(ERR_EXPECT_REJECTION))
+            done(new Error('Expecting rejection. Check your test data.'))
           }).catch((err) => {
-            if (!isEqual(err.message, ERR_NOT_ERRINSTANCE)) {
-              done(new Error(ERR_RETURN_UNMATCH))
+            if (!isEqual(err.message, 'Kindly specify a valid error to log')) {
+              done(new Error('Returned value not matched.'))
             } else {
               done()
             }

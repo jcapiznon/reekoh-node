@@ -13,26 +13,19 @@ const reekoh = require('../../index.js')
 const isEqual = require('lodash.isequal')
 const Broker = require('../../lib/broker.lib')
 
-const QN_AGENT_DEVICE_INFO = 'agent.deviceinfo'
-const ERR_RETURN_UNMATCH = 'Returned value not matched.'
-const ERR_EXPECT_REJECTION = 'Expecting rejection. check function test param.'
-const ERR_EMPTY_IDENTIFIER = 'Kindly specify the device identifier'
-const ERR_EMPTY_DEVICE_ID = 'Kindly specify a valid id for the device'
-const ERR_EMPTY_DEVICE_NAME = 'Kindly specify a valid name for the device'
-const ERR_EMPTY_DEVICE_INFO = 'Kindly specify the device information/details'
-const ERR_EMPTY_DEVICE_STATE = 'Kindly specify the device state'
-const ERR_EMPTY_DATA_TO_FORWARD = 'Kindly specify the data to forward'
-const ERR_EMPTY_CMD_TO_SEND = 'Kindly specify the command/message to send'
-const ERR_EMPTY_DEVICE_OR_DEVICE_TYPES = 'Kindly specify the target device types or devices'
+const ENV_PIPELINE = 'demo.pipeline'
+const ENV_BROKER = 'amqp://guest:guest@127.0.0.1/'
+
+const QN_DEVICE_INFO = 'deviceinfo'
 
 describe('Gateway Plugin Test', () => {
   before('#test init', () => {
     process.env.LOGGERS = ''
     process.env.EXCEPTION_LOGGERS = ''
 
-    process.env.PIPELINE = 'demo.pipeline'
-    process.env.OUTPUT_PIPES = 'outpipe.1,outpipe.2'
-    process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
+    process.env.BROKER = ENV_BROKER
+    process.env.PIPELINE = ENV_PIPELINE
+    process.env.OUTPUT_PIPES = 'demo.outpipe.1,demo.outpipe.2'
 
     _broker = new Broker() // tester broker
 
@@ -71,11 +64,11 @@ describe('Gateway Plugin Test', () => {
 
     it('should rcv `message` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue(process.env.PIPELINE, new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue(ENV_PIPELINE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('message', (data) => {
         if (!isEqual(data, dummyData)) {
-          done(new Error(ERR_RETURN_UNMATCH))
+          done(new Error('Returned value not matched.'))
         } else {
           done()
         }
@@ -85,7 +78,7 @@ describe('Gateway Plugin Test', () => {
 
   describe('#RPC', () => {
     it('should connect to broker', (done) => {
-      _broker.connect(process.env.BROKER)
+      _broker.connect(ENV_BROKER)
         .then(() => {
           return done()
         }).catch((err) => {
@@ -96,6 +89,7 @@ describe('Gateway Plugin Test', () => {
     it('should spawn temporary RPC server', (done) => {
       // if request arrives this proc will be called
       let sampleServerProcedure = (msg) => {
+        // console.log(msg.content.toString('utf8'))
         return new Promise((resolve, reject) => {
           async.waterfall([
             async.constant(msg.content.toString('utf8')),
@@ -108,7 +102,7 @@ describe('Gateway Plugin Test', () => {
         })
       }
 
-      _broker.newRpc('server', QN_AGENT_DEVICE_INFO)
+      _broker.newRpc('server', QN_DEVICE_INFO)
         .then((queue) => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
@@ -125,16 +119,18 @@ describe('Gateway Plugin Test', () => {
           .then(() => {
             // noop!
           }).catch((err) => {
-            if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
-              done(new Error(ERR_RETURN_UNMATCH))
+            if (!isEqual(err.message, 'Kindly specify the device identifier')) {
+              done(new Error('Returned value not matched.'))
             } else {
               done()
             }
           })
       })
 
-      it('should request device info', (done) => {
-        _plugin.requestDeviceInfo(123)
+      it('should request device info', function (done) {
+        this.timeout(3000)
+
+        _plugin.requestDeviceInfo('123')
           .then((ret) => {
             async.waterfall([
               async.constant(ret),
@@ -153,10 +149,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if data is empty', (done) => {
       _plugin.pipe('', '')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_DATA_TO_FORWARD)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the data to forward')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -186,10 +182,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if message is empty', (done) => {
       _plugin.relayMessage('', '', '')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_CMD_TO_SEND)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the command/message to send')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -199,10 +195,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if device or deviceTypes is empty', (done) => {
       _plugin.relayMessage('test', '', '')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_DEVICE_OR_DEVICE_TYPES)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the target device types or devices')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -223,10 +219,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceId is empty', (done) => {
       _plugin.notifyConnection('')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the device identifier')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -247,10 +243,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceId is empty', (done) => {
       _plugin.notifyDisconnection('')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the device identifier')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -271,10 +267,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceInfo is empty', (done) => {
       _plugin.syncDevice('', [])
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_DEVICE_INFO)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the device information/details')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -284,10 +280,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceInfo doesnt have `_id` or `id` property', (done) => {
       _plugin.syncDevice({}, [])
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_DEVICE_ID)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify a valid id for the device')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -297,10 +293,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceInfo doesnt have `name` property', (done) => {
       _plugin.syncDevice({_id: 123}, [])
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_DEVICE_NAME)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify a valid name for the device')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -321,10 +317,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceId is empty', (done) => {
       _plugin.removeDevice('')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the device identifier')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -345,10 +341,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if deviceId is empty', (done) => {
       _plugin.setDeviceState('', '')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_IDENTIFIER)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the device identifier')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
@@ -358,10 +354,10 @@ describe('Gateway Plugin Test', () => {
     it('should throw error if state is empty', (done) => {
       _plugin.setDeviceState('test', '')
         .then(() => {
-          done(new Error(ERR_EXPECT_REJECTION))
+          done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_DEVICE_STATE)) {
-            done(new Error(ERR_RETURN_UNMATCH))
+          if (!isEqual(err.message, 'Kindly specify the device state')) {
+            done(new Error('Returned value not matched.'))
           } else {
             done()
           }
