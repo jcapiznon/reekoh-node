@@ -6,14 +6,17 @@ let isEqual = require('lodash.isequal')
 let _conn = null
 let _plugin = null
 let _channel = null
+
 const ERR_RETURN_UNMATCH = 'Returned value not matched.'
 const ERR_EMPTY_LOG_DATA = 'Please specify a data to log.'
+const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log.'
 
 describe('Logger Plugin Test', () => {
   before('#test init', () => {
     process.env.INPUT_PIPE = 'lip.1'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
     process.env.CONFIG = '{"foo":"bar"}'
+    process.env.ACCOUNT = 'demo account'
 
     amqp.connect(process.env.BROKER)
       .then((conn) => {
@@ -81,7 +84,7 @@ describe('Logger Plugin Test', () => {
         .then(() => {
           done()
         }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_LOG_DATA)) {
+          if (!isEqual(err.message, ERR_NOT_ERRINSTANCE)) {
             done(new Error(ERR_RETURN_UNMATCH))
           } else {
             done()
