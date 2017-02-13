@@ -151,7 +151,7 @@ describe('Gateway Plugin Test', () => {
         .then(() => {
           done(new Error('Expecting rejection. check function test param.'))
         }).catch((err) => {
-          if (!isEqual(err.message, 'Kindly specify the data to forward')) {
+          if (!isEqual(err.message, 'Invalid data received. Data should be and Object and should not empty.')) {
             done(new Error('Returned value not matched.'))
           } else {
             done()
@@ -160,7 +160,7 @@ describe('Gateway Plugin Test', () => {
     })
 
     it('should publish data to output pipes', (done) => {
-      _plugin.pipe('{"foo":"bar"}', '') // no seq
+      _plugin.pipe({foo:'bar'}, '') // no seq
         .then(() => {
           done()
         }).catch((err) => {
@@ -169,7 +169,7 @@ describe('Gateway Plugin Test', () => {
     })
 
     it('should publish data to sanitizer', (done) => {
-      _plugin.pipe('{"foo":"bar"}', 'seq123')
+      _plugin.pipe({foo:'bar'}, 'seq123')
         .then(() => {
           done()
         }).catch((err) => {
