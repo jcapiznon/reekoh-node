@@ -94,7 +94,7 @@ describe('Stream Plugin Test', () => {
         })
       }
 
-      _broker.newRpc('server', 'deviceinfo')
+      _broker.createRPC('server', 'deviceinfo')
         .then((queue) => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
