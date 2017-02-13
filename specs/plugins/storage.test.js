@@ -17,6 +17,7 @@ describe('Storage Plugin Test', () => {
   before('#test init', () => {
 
     process.env.LOGGERS = ''
+    process.env.CONFIG = '{}'
     process.env.EXCEPTION_LOGGERS = ''
     process.env.INPUT_PIPE = ENV_INPUT_PIPE
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
