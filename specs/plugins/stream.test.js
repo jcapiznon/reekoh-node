@@ -55,7 +55,7 @@ describe('Stream Plugin Test', () => {
   describe('#events', () => {
     it('should receive `message` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue(process.env.PIPELINE, new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue('Pl1', new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('message', (data) => {
         if (!isEqual(data, dummyData)) {
@@ -68,7 +68,7 @@ describe('Stream Plugin Test', () => {
 
     it('should receive `sync` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue(process.env.PLUGIN_ID, new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue('plugin1', new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('sync', () => {
         done()
@@ -78,7 +78,7 @@ describe('Stream Plugin Test', () => {
 
   describe('#RPC', () => {
     it('should connect to broker', (done) => {
-      _broker.connect(process.env.BROKER)
+      _broker.connect('amqp://guest:guest@127.0.0.1/')
         .then(() => {
           return done()
         }).catch((err) => {
@@ -94,7 +94,7 @@ describe('Stream Plugin Test', () => {
         })
       }
 
-      _broker.newRpc('server', 'deviceinfo')
+      _broker.createRPC('server', 'deviceinfo')
         .then((queue) => {
           return queue.serverConsume(sampleServerProcedure)
         }).then(() => {
