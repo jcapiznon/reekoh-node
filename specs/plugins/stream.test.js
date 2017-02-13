@@ -138,7 +138,7 @@ describe('Stream Plugin Test', () => {
         .then(() => {
           done(new Error('Reject expected.'))
         }).catch((err) => {
-          if (!isEqual(err, new Error('Invalid data received. Data should be and Object and not empty.'))) {
+          if (!isEqual(err, new Error('Invalid data received. Data should be an Object and should not be empty.'))) {
             done(new Error('Return value did not match.'))
           } else {
             done()
