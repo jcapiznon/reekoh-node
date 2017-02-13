@@ -16,8 +16,9 @@ const ENV_PLUGIN_ID = 'demo.dev-sync'
 
 describe('DeviceSync Test', () => {
   before('#test init', () => {
-    
+
     process.env.LOGGERS = ''
+    process.env.CONFIG = '{}'
     process.env.EXCEPTION_LOGGERS = ''
     process.env.PLUGIN_ID = ENV_PLUGIN_ID
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
