@@ -9,7 +9,7 @@ let _channel = null
 
 const ERR_RETURN_UNMATCH = 'Returned value not matched.'
 const ERR_EMPTY_LOG_DATA = 'Please specify a data to log.'
-const ERR_NOT_ERRINSTANCE = 'Kindly specify a valid error to log.'
+const ERR_NOT_ERRINSTANCE = 'Please specify a valid error to log.'
 
 describe('Logger Plugin Test', () => {
   before('#test init', () => {
