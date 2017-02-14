@@ -21,6 +21,7 @@ const QN_DEVICE_INFO = 'deviceinfo'
 describe('Gateway Plugin Test', () => {
   before('#test init', () => {
     process.env.LOGGERS = ''
+    process.env.CONFIG = '{}'
     process.env.EXCEPTION_LOGGERS = ''
 
     process.env.BROKER = ENV_BROKER
