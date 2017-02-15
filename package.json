@@ -1,5 +1,5 @@
 {
-  "name": "reekoh-node",
+  "name": "reekoh",
   "version": "1.0.0",
   "description": "Reekoh Plugin SDKs and REST API Wrappers for Node.js.",
   "scripts": {
@@ -10,6 +10,19 @@
     "url": "git+https://github.com/Reekoh/reekoh-node.git"
   },
   "author": "Reekoh, Inc.",
+  "contributors": [{
+    "name": "Benj Sicam",
+    "email": "bsicam@reekoh.com"
+  },{
+    "name": "Edd Gracilla",
+    "email": "egracilla@reekoh.com"
+  },{
+    "name": "Achilles Dinglasan",
+    "email": "adinglasan@reekoh.com"
+  },{
+    "name": "Jireh Capiznon",
+    "email": "jcapiznon@reekoh.com"
+  }],
   "license": "GPL-3.0",
   "bugs": {
     "url": "https://github.com/Reekoh/reekoh-node/issues"
