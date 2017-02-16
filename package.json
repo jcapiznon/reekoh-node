@@ -1,5 +1,5 @@
 {
-  "name": "reekoh-node",
+  "name": "reekoh",
   "version": "1.0.0",
   "description": "Reekoh Plugin SDKs and REST API Wrappers for Node.js.",
   "scripts": {
