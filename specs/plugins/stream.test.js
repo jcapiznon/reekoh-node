@@ -16,7 +16,7 @@ describe('Stream Plugin Test', () => {
 
   before('#test init', () => {
     process.env.PLUGIN_ID = 'plugin1'
-    process.env.PIPELINE = 'Pl1'
+    process.env.COMMAND_RELAYS = 'cr1,cr2'
     process.env.OUTPUT_PIPES = 'Op1,Op2'
     process.env.LOGGERS = 'logger1,logger2'
     process.env.EXCEPTION_LOGGERS = 'exlogger1,exlogger2'
@@ -53,11 +53,11 @@ describe('Stream Plugin Test', () => {
   })
 
   describe('#events', () => {
-    it('should receive `message` event', (done) => {
+    it('should receive `command` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue('Pl1', new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue('cr1', new Buffer(JSON.stringify(dummyData)))
 
-      _plugin.on('message', (data) => {
+      _plugin.on('command', (data) => {
         if (!isEqual(data, dummyData)) {
           done(new Error('received data not matched'))
         } else {
@@ -124,7 +124,6 @@ describe('Stream Plugin Test', () => {
     it('should request device info', (done) => {
       _plugin.requestDeviceInfo('device1')
         .then((reply) => {
-          console.log(reply)
           done()
         }).catch((err) => {
           done(err)
@@ -162,6 +161,30 @@ describe('Stream Plugin Test', () => {
         }).catch((err) => {
           done(err)
         })
+    })
+  })
+
+  describe('#sendCommandResponse()', () => {
+    it('should throw error if commandId is empty', (done) => {
+      _plugin.sendCommandResponse('', 'response')
+        .then(() => {
+          done(new Error('reject expected'))
+        })
+        .catch((err) => {
+          if (!isEqual(new Error('Invalid Command ID received. Command ID should be a string and should not be empty.'), err)) {
+            done(new Error('Return value did not match.'))
+          } else {
+            done()
+          }
+        })
+    })
+
+    it('should publish message to cmd.responses', (done) => {
+      _plugin.sendCommandResponse('command1', 'sample response')
+        .then(() => {
+          done()
+        })
+        .catch(done)
     })
   })
 
