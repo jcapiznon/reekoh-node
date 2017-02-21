@@ -11,14 +11,14 @@ let reekoh = require('../../index.js')
 let isEqual = require('lodash.isequal')
 
 // preserving.. plugin clears env after init
-const ENV_INPUT_PIPE = 'demo.storage'
+const INPUT_PIPE = 'demo.storage'
 
 describe('Storage Plugin Test', () => {
   before('#test init', () => {
     process.env.LOGGERS = ''
     process.env.CONFIG = '{}'
     process.env.EXCEPTION_LOGGERS = ''
-    process.env.INPUT_PIPE = ENV_INPUT_PIPE
+    process.env.INPUT_PIPE = INPUT_PIPE
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
 
     amqp.connect(process.env.BROKER).then((conn) => {
@@ -55,7 +55,7 @@ describe('Storage Plugin Test', () => {
 
     it('should rcv `data` event', (done) => {
       let dummyData = { 'foo': 'bar' }
-      _channel.sendToQueue(ENV_INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))
+      _channel.sendToQueue(INPUT_PIPE, new Buffer(JSON.stringify(dummyData)))
 
       _plugin.on('data', (data) => {
         if (!isEqual(dummyData, data)) {

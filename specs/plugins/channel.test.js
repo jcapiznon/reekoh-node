@@ -75,7 +75,7 @@ describe('Channel Plugin Test', () => {
       _plugin.relayCommand('', '', '').then(() => {
         done(new Error('Expecting rejection. Check your test data.'))
       }).catch((err) => {
-        if (!isEqual(err.message, 'Kindly specify a valid command/message to send')) {
+        if (!isEqual(err.message, 'Kindly specify a valid command to send')) {
           done(new Error('Returned value not matched.'))
         } else {
           done()
