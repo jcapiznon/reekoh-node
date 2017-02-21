@@ -3,15 +3,15 @@
 let amqp = require('amqplib')
 let Reekoh = require('../../index.js')
 let isEqual = require('lodash.isequal')
-let _conn = null
-let _plugin = null
-let _channel = null
 
-const ERR_RETURN_UNMATCH = 'Returned value not matched.'
-const ERR_EMPTY_LOG_DATA = 'Please specify a data to log.'
-const ERR_NOT_ERRINSTANCE = 'Please specify a valid error to log.'
 
 describe('Logger Plugin Test', () => {
+  let _conn = null
+  let _plugin = null
+  let _channel = null
+
+  let errLog = (err) => { console.log(err) }
+
   before('#test init', () => {
     process.env.INPUT_PIPE = 'lip.1'
     process.env.BROKER = 'amqp://guest:guest@127.0.0.1/'
@@ -23,10 +23,8 @@ describe('Logger Plugin Test', () => {
         _conn = conn
         return conn.createChannel()
       }).then((channel) => {
-        _channel = channel
-      }).catch((err) => {
-        console.log(err)
-      })
+      _channel = channel
+    }).catch(errLog)
   })
 
   after('terminate connection', () => {
@@ -36,11 +34,11 @@ describe('Logger Plugin Test', () => {
       })
   })
 
-  // --- tests
   describe('#spawn', () => {
     it('should spawn the class without error', (done) => {
       _plugin = new Reekoh.plugins.Logger()
       _plugin.once('ready', () => {
+        console.log(_plugin.config)
         done()
       })
     })
@@ -50,55 +48,34 @@ describe('Logger Plugin Test', () => {
     it('should receive data from input pipe queue', (done) => {
       let dummyData = { 'foo': 'bar' }
       _channel.sendToQueue('lip.1', new Buffer(JSON.stringify(dummyData)))
+
       _plugin.on('log', (data) => {
-        done()
+        if (!isEqual(data, dummyData)) {
+          done(new Error('received data not matched'))
+        } else {
+          done()
+        }
       })
     })
   })
 
   describe('#logging', () => {
-    it('should throw error if logData is empty', (done) => {
-      _plugin.log('')
-        .then(() => {
-          done()
-        }).catch((err) => {
-          if (!isEqual(err.message, ERR_EMPTY_LOG_DATA)) {
-            done(new Error(ERR_RETURN_UNMATCH))
-          } else {
-            done()
-          }
-        })
-    })
-
     it('should send a log to logger queues', (done) => {
       _plugin.log('dummy log data')
         .then(() => {
           done()
-        }).catch((err) => {
-          done(err)
-        })
-    })
-
-    it('should throw error if param is not an Error instance', (done) => {
-      _plugin.logException('')
-        .then(() => {
-          done()
-        }).catch((err) => {
-          if (!isEqual(err.message, ERR_NOT_ERRINSTANCE)) {
-            done(new Error(ERR_RETURN_UNMATCH))
-          } else {
-            done()
-          }
-        })
+        }).catch(() => {
+        done(new Error('send using logger fail.'))
+      })
     })
 
     it('should send an exception log to exception logger queues', (done) => {
       _plugin.logException(new Error('test'))
         .then(() => {
           done()
-        }).catch((err) => {
-          done(err)
-        })
+        }).catch(() => {
+        done(new Error('send using exception logger fail.'))
+      })
     })
   })
 })
